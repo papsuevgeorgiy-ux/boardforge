@@ -83,3 +83,7 @@ class Part:
             if min(xmax - xmin, ymax - ymin) < min_size_mm - EPS:
                 return True
         return False
+
+
+type Billet = tuple[Part, ...]
+"""Именованная заготовка: щит — кортеж из одной детали, пачка после реза — из n."""

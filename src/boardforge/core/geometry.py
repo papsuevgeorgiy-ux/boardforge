@@ -104,10 +104,13 @@ def stand_on_end(part: Part, crosscut_step_mm: float) -> Part:
     щита, вне плоскости — толщина щита. Поворот вокруг длинной оси делает
     волокна вертикальными, и в плане на месте шага оказывается толщина.
 
-    Преобразование сводится к масштабу по X только потому, что валидатор
-    требует `StandOnEnd` сразу после торцовки: тогда каждая ячейка занимает
-    весь шаг по X, и сжатие эквивалентно повороту.
+    Преобразование сводится к масштабу по X только потому, что каждая ячейка
+    занимает весь шаг по X — так выходит сразу после торцовки. Инвариант
+    проверяется здесь же: если его снять, поворот перестанет быть масштабом,
+    и молча поехали бы все размеры.
     """
+    _require_full_width_cells(part, crosscut_step_mm)
+
     factor = part.thickness_mm / crosscut_step_mm
     turned = tuple(
         Piece(
@@ -119,28 +122,61 @@ def stand_on_end(part: Part, crosscut_step_mm: float) -> Part:
     return normalized(Part(turned, crosscut_step_mm))
 
 
+def _require_full_width_cells(part: Part, step_mm: float) -> None:
+    """Каждая ячейка обязана занимать весь шаг реза по X.
+
+    Держит предусловие `stand_on_end`. Ловится всё, что ломает эквивалентность
+    поворота и масштаба: угловой рез, повторный рез, обрезка вдоль полосы.
+    """
+    xmin, _, xmax, _ = part.bounds
+    if abs(xmin) > EPS or abs(xmax - step_mm) > EPS:
+        raise ValueError(
+            f"полоса шириной {xmax - xmin:.3f} мм не отвечает шагу торцовки "
+            f"{step_mm} мм — на торец ставят сразу после торцовки"
+        )
+
+    for index, piece in enumerate(part.pieces):
+        left, _, right, _ = piece.polygon.bounds
+        if abs(left) > EPS or abs(right - step_mm) > EPS:
+            raise ValueError(
+                f"ячейка №{index} занимает по X {left:.3f}–{right:.3f} мм вместо "
+                f"0–{step_mm} мм: поворот на торец здесь не сводится к масштабу"
+            )
+        if abs(piece.polygon.area - (right - left) * _y_extent(piece)) > EPS:
+            raise ValueError(
+                f"ячейка №{index} не прямоугольна: поворот на торец здесь "
+                f"не сводится к масштабу"
+            )
+
+
+def _y_extent(piece: Piece) -> float:
+    _, bottom, _, top = piece.polygon.bounds
+    return top - bottom
+
+
 def assemble(
     parts: list[Part],
-    order: tuple[int, ...],
     reversed_flags: tuple[bool, ...],
     offsets_mm: tuple[float, ...],
 ) -> Part:
-    """Склеить детали в новый щит: порядок по X, разворот, сдвиг по Y."""
-    if not order:
-        raise ValueError("нечего склеивать")
-    for index in order:
-        if index >= len(parts):
-            raise ValueError(
-                f"деталь №{index} не существует: после реза их всего {len(parts)}"
-            )
+    """Склеить детали в новый щит: порядок по X, разворот, сдвиг по Y.
 
-    thickness = parts[order[0]].thickness_mm
+    Детали приходят уже выбранными: какие именно и из каких заготовок,
+    решает исполнитель программы.
+    """
+    if not parts:
+        raise ValueError("нечего склеивать")
+
+    thickness = parts[0].thickness_mm
     pieces: list[Piece] = []
     cursor = 0.0
-    for slot, index in enumerate(order):
-        source = normalized(parts[index])
+    for slot, part in enumerate(parts):
+        source = normalized(part)
         if abs(source.thickness_mm - thickness) > EPS:
-            raise ValueError("нельзя склеить детали разной толщины в один щит")
+            raise ValueError(
+                f"нельзя склеить детали разной толщины в один щит: "
+                f"{thickness:.1f} мм и {source.thickness_mm:.1f} мм"
+            )
         if reversed_flags[slot]:
             _, _, xmax, ymax = source.bounds
             source = Part(

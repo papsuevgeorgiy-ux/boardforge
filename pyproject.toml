@@ -18,6 +18,7 @@ packages = ["src/boardforge"]
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.165.2",
     "pytest>=8.0",
     "ruff>=0.9",
 ]
