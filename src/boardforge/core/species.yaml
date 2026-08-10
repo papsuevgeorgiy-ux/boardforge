@@ -1,0 +1,100 @@
+# Справочник пород.
+#
+# Плотность — кг/м³ при влажности ~12%. Усушка — % от сырого до абсолютно
+# сухого, тангенциальная и радиальная.
+#
+# ТРЕБУЕТ СВЕРКИ по The Wood Database и Wood Handbook FPL: значения взяты
+# из docs/domain.md как стартовые.
+#
+# Цвет — приблизительный цвет ТОРЦЕВОГО среза под маслом, sRGB. Подобран
+# на глаз, измерений не было. ТРЕБУЕТ СВЕРКИ по фотографиям.
+
+maple_hard:
+  name: Клён сахарный
+  density: 705
+  shrinkage: {tangential: 9.9, radial: 4.8}
+  color: "#e6d4ac"
+  note: эталон для разделочных досок
+
+walnut_black:
+  name: Орех американский
+  density: 610
+  shrinkage: {tangential: 7.8, radial: 5.5}
+  color: "#5a3f2d"
+  note: классика контраста
+
+cherry:
+  name: Вишня
+  density: 560
+  shrinkage: {tangential: 7.1, radial: 3.7}
+  color: "#ac6a45"
+  fades: true
+  note: темнеет от света
+
+ash:
+  name: Ясень
+  density: 675
+  shrinkage: {tangential: 7.8, radial: 4.9}
+  color: "#d9c39c"
+  open_pores: true
+  note: крупные поры
+
+oak:
+  name: Дуб
+  density: 700
+  shrinkage: {tangential: 10.5, radial: 5.6}
+  color: "#c3a274"
+  open_pores: true
+  note: открытые поры, для разделочной поверхности не рекомендуется
+
+beech:
+  name: Бук
+  density: 710
+  shrinkage: {tangential: 11.9, radial: 5.5}
+  color: "#d5ab84"
+  note: сильно «играет» при смене влажности
+
+hornbeam:
+  name: Граб
+  density: 750
+  shrinkage: {tangential: 11.5, radial: 6.8}
+  color: "#e3d9c2"
+  note: очень твёрдый
+
+padauk:
+  name: Падук
+  density: 745
+  shrinkage: {tangential: 5.2, radial: 3.3}
+  color: "#bd4419"
+  fades: true
+  note: со временем буреет
+
+purpleheart:
+  name: Амарант
+  density: 880
+  shrinkage: {tangential: 6.1, radial: 3.2}
+  color: "#5d3a6b"
+  allergen: true
+  fades: true
+  note: цвет нестабилен на свету
+
+wenge:
+  name: Венге
+  density: 870
+  shrinkage: {tangential: 8.1, radial: 4.8}
+  color: "#3b2f2a"
+  allergen: true
+  note: занозы, пыль раздражает дыхательные пути
+
+jatoba:
+  name: Ятоба
+  density: 910
+  shrinkage: {tangential: 7.7, radial: 4.0}
+  color: "#8b4a2f"
+  note: тяжёлая
+
+sapele:
+  name: Сапеле
+  density: 640
+  shrinkage: {tangential: 7.4, radial: 4.6}
+  color: "#8c4e33"
