@@ -5,6 +5,7 @@
 первого во второе под тем же именем, склейка заводит новое имя.
 """
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,6 +23,7 @@ from .ops import (
     target_of,
 )
 from .piece import Billet, Part
+from .units import EPS
 
 SCHEMA_VERSION = 2
 
@@ -53,6 +55,13 @@ class CutYield:
     count: int
     remainder_mm: float
     source_length_mm: float
+    waste_mm2: float = 0.0
+    """Площадь материала, не попавшего ни в одну полосу.
+
+    Из `remainder_mm` не выводится: при угловом резе отход клиновидный.
+    """
+    op_index: int = -1
+    """Номер операции реза в программе — по нему замечания привязываются к месту."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +73,53 @@ class Execution:
     billets: dict[str, Billet] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class _Snapshot:
+    """Состояние исполнения после префикса программы — то, что кладём в кэш.
+
+    Всё внутри неизменяемо: заготовки это кортежи деталей, детали заморожены,
+    полигоны shapely тоже. Поэтому снимок отдаётся наружу как есть, а копируется
+    только сам словарь заготовок — его исполнение дополняет.
+    """
+
+    billets: dict[str, Billet]
+    crosscut_steps: dict[str, float]
+    cuts: tuple[CutYield, ...]
+
+
+_CACHE: OrderedDict[tuple[Operation, ...], _Snapshot] = OrderedDict()
+_CACHE_LIMIT = 64
+"""Сколько префиксов помним. Правка последней операции не должна пересчитывать
+всю программу — ради этого кэш и заведён (см. architecture.md)."""
+
+
+def clear_cache() -> None:
+    """Забыть посчитанное. Нужна тестам, которые меряют время исполнения."""
+    _CACHE.clear()
+
+
+def cache_size() -> int:
+    """Сколько префиксов сейчас в кэше."""
+    return len(_CACHE)
+
+
+def _remember(prefix: tuple[Operation, ...], snapshot: _Snapshot) -> None:
+    _CACHE[prefix] = snapshot
+    _CACHE.move_to_end(prefix)
+    while len(_CACHE) > _CACHE_LIMIT:
+        _CACHE.popitem(last=False)
+
+
+def _longest_cached(operations: tuple[Operation, ...]) -> tuple[int, _Snapshot | None]:
+    """Самый длинный уже посчитанный префикс программы."""
+    for length in range(len(operations), 0, -1):
+        snapshot = _CACHE.get(operations[:length])
+        if snapshot is not None:
+            _CACHE.move_to_end(operations[:length])
+            return length, snapshot
+    return 0, None
+
+
 @dataclass(slots=True)
 class _BilletState:
     """Что валидатор знает о заготовке, не считая геометрии."""
@@ -71,6 +127,25 @@ class _BilletState:
     is_stack: bool
     last_op: str
     stood: bool
+    glues: tuple[int, ...] = ()
+    """Номера операций `Glue`, из которых в итоге набран материал заготовки."""
+    cut_angle_deg: float | None = None
+    """Угол последнего реза; None, если заготовку после реза уже склеили."""
+
+
+def _cycle_repeats(species: tuple[str, ...]) -> int:
+    """Сколько раз породный набор повторяет сам себя.
+
+    Набор `A B C A B C` — два повтора цикла длиной три; `A B C A B` — один,
+    потому что целым числом циклов не выражается.
+    """
+    total = len(species)
+    for length in range(1, total // 2 + 1):
+        if total % length == 0 and all(
+            species[i] == species[i % length] for i in range(total)
+        ):
+            return total // length
+    return 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,7 +175,7 @@ class Program:
                         issues.append(
                             Issue("error", f"заготовка {op.id} уже заведена", index)
                         )
-                    states[op.id] = _BilletState(False, "glue", False)
+                    states[op.id] = _BilletState(False, "glue", False, glues=(index,))
 
                 case Crosscut():
                     state = self._require(states, op.source, issues, index)
@@ -125,6 +200,7 @@ class Program:
                             )
                         state.is_stack = True
                         state.last_op = "crosscut"
+                        state.cut_angle_deg = 90.0
 
                 case StandOnEnd():
                     state = self._require(states, op.source, issues, index)
@@ -173,6 +249,7 @@ class Program:
                             )
                         state.is_stack = True
                         state.last_op = "cut"
+                        state.cut_angle_deg = op.angle_deg
 
                 case Assemble():
                     self._check_assemble(op, states, issues, index)
@@ -229,6 +306,7 @@ class Program:
             issues.append(Issue("error", f"заготовка {op.id} уже заведена", index))
 
         stood_flags: set[bool] = set()
+        glues: tuple[int, ...] = ()
         for ref in op.pieces:
             state = states.get(ref.billet)
             if state is None:
@@ -246,6 +324,9 @@ class Program:
                     )
                 )
             stood_flags.add(state.stood)
+            glues += tuple(item for item in state.glues if item not in glues)
+
+        self._check_mirrored_composition(op, states, issues, index)
 
         if len(stood_flags) > 1:
             issues.append(
@@ -257,7 +338,58 @@ class Program:
                 )
             )
 
-        states[op.id] = _BilletState(False, "assemble", any(stood_flags))
+        states[op.id] = _BilletState(False, "assemble", any(stood_flags), glues=glues)
+
+    def _check_mirrored_composition(
+        self,
+        op: Assemble,
+        states: dict[str, _BilletState],
+        issues: list[Issue],
+        index: int,
+    ) -> None:
+        """Хватает ли щиту породных циклов, чтобы зеркальный узор сошёлся.
+
+        Ограничение состава щита, а не узора, поэтому замечание вешается
+        на `Glue`, а не на склейку. Проверяется статически: исполнить такую
+        программу можно, она просто соберётся с дырами на швах, и заметить это
+        по превью нельзя — там будет не ошибка, а пустое место.
+        """
+        if not op.flipped or not any(op.flipped):
+            return
+
+        angled = {
+            ref.billet
+            for ref in op.pieces
+            if (state := states.get(ref.billet)) is not None
+            and state.cut_angle_deg is not None
+            and abs(state.cut_angle_deg - 90.0) > EPS
+        }
+        if not angled:
+            return
+
+        reported: set[int] = set()
+        for name in angled:
+            for glue_index in states[name].glues:
+                source = self.operations[glue_index]
+                if glue_index in reported or not isinstance(source, Glue):
+                    continue
+                reported.add(glue_index)
+
+                species = tuple(strip.species for strip in source.strips)
+                if len(set(species)) < 2 or _cycle_repeats(species) > 1:
+                    continue
+
+                issues.append(
+                    Issue(
+                        "warning",
+                        f"щит {source.id} набран одним породным циклом, "
+                        f"а полосы из него склеиваются зеркально под углом. "
+                        f"Сдвиг ряда переносится на период узора, и переносить "
+                        f"его будет не на что: часть швов останется без "
+                        f"материала. Повтори набор реек хотя бы дважды",
+                        glue_index,
+                    )
+                )
 
     @property
     def errors(self) -> list[Issue]:
@@ -265,17 +397,29 @@ class Program:
         return [issue for issue in self.validate() if issue.level == "error"]
 
     def run(self) -> Execution:
-        """Исполнить программу: доска плюс данные о выходе деталей из резов."""
+        """Исполнить программу: доска плюс данные о выходе деталей из резов.
+
+        Результат каждого префикса кэшируется, поэтому правка последней операции
+        не пересчитывает всю программу — а в редакторе правят именно последнюю.
+        """
         errors = self.errors
         if errors:
             listing = "; ".join(str(issue) for issue in errors)
             raise ProgramError(f"программа неисполнима: {listing}")
 
-        billets: dict[str, Billet] = {}
-        crosscut_steps: dict[str, float] = {}
-        cuts: list[CutYield] = []
+        done, snapshot = _longest_cached(self.operations)
+        if snapshot is not None:
+            billets = dict(snapshot.billets)
+            crosscut_steps = dict(snapshot.crosscut_steps)
+            cuts = list(snapshot.cuts)
+        else:
+            billets = {}
+            crosscut_steps = {}
+            cuts = []
 
-        for op in self.operations:
+        for op_index, op in enumerate(self.operations):
+            if op_index < done:
+                continue
             match op:
                 case Glue():
                     billets[op.id] = (
@@ -284,19 +428,21 @@ class Program:
 
                 case Crosscut():
                     source = billets[op.source][0]
-                    parts, remainder = geometry.slice_part(
+                    sliced = geometry.slice_part(
                         source, 90.0, op.step_mm, along_strip=True
                     )
-                    billets[op.source] = tuple(parts)
+                    billets[op.source] = tuple(sliced.parts)
                     crosscut_steps[op.source] = op.step_mm
                     cuts.append(
                         CutYield(
                             op.source,
                             op.step_mm,
                             90.0,
-                            len(parts),
-                            remainder,
+                            len(sliced.parts),
+                            sliced.remainder_mm,
                             source.length_mm,
+                            sliced.waste_mm2,
+                            op_index,
                         )
                     )
 
@@ -308,18 +454,18 @@ class Program:
 
                 case Cut():
                     source = billets[op.source][0]
-                    parts, remainder = geometry.slice_part(
-                        source, op.angle_deg, op.step_mm
-                    )
-                    billets[op.source] = tuple(parts)
+                    sliced = geometry.slice_part(source, op.angle_deg, op.step_mm)
+                    billets[op.source] = tuple(sliced.parts)
                     cuts.append(
                         CutYield(
                             op.source,
                             op.step_mm,
                             op.angle_deg,
-                            len(parts),
-                            remainder,
+                            len(sliced.parts),
+                            sliced.remainder_mm,
                             source.width_mm,
+                            sliced.waste_mm2,
+                            op_index,
                         )
                     )
 
@@ -337,6 +483,11 @@ class Program:
                             billets[op.source][0], op.left, op.right, op.top, op.bottom
                         ),
                     )
+
+            _remember(
+                self.operations[: op_index + 1],
+                _Snapshot(dict(billets), dict(crosscut_steps), tuple(cuts)),
+            )
 
         result = target_of(self.operations[-1])
         return Execution(billets[result][0], tuple(cuts), billets)
@@ -384,5 +535,7 @@ __all__ = [
     "Issue",
     "Program",
     "ProgramError",
+    "cache_size",
+    "clear_cache",
     "program",
 ]

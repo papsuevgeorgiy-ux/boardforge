@@ -151,3 +151,40 @@ def test_layers_are_deterministic(grid: Part, catalogue) -> None:
     assert render_texture(grid, catalogue, options) == render_texture(
         grid, catalogue, options
     )
+
+
+@pytest.fixture(scope="module")
+def chevron_board() -> Part:
+    """Шеврон: у наклонных ячеек вершин больше, чем у прямоугольных.
+
+    Контракт слоёв проверялся только на ортогональной сетке, где все ячейки —
+    прямоугольники с четырьмя точками. Угловой рез даёт трапеции и клинья,
+    а вместе с ними другое округление координат; если слои разойдутся, то
+    именно здесь.
+    """
+    from boardforge.core.patterns import StripedPanel, chevron
+
+    panel = StripedPanel(
+        species=("maple_hard", "walnut_black", "cherry"), columns=14, repeats=3
+    )
+    return chevron(panel, angle_deg=45.0, step_mm=40.0).apply()
+
+
+def test_layers_compose_into_the_whole_on_angles(chevron_board: Part, catalogue) -> None:
+    """Тот же контракт на угловом узоре: побайтово полный документ."""
+    options = RenderOptions(scale=2.0)
+    structure = render_structure(chevron_board, catalogue, options)
+    texture = render_texture(chevron_board, catalogue, options)
+    filled = structure.replace(EMPTY_GROUP, f'<g id="{TEXTURE_GROUP_ID}">{texture}</g>')
+    assert filled == render_board(chevron_board, catalogue, options)
+
+
+def test_angled_structure_stays_within_the_budget(chevron_board: Part, catalogue) -> None:
+    """Ориентир 100 мс на структуру держится и на углах — это и был риск дня."""
+    options = RenderOptions(scale=2.0)
+    started = time.perf_counter()
+    structure = render_structure(chevron_board, catalogue, options)
+    elapsed = time.perf_counter() - started
+
+    assert elapsed < STRUCTURE_TIME_LIMIT_S, f"структура рисовалась {elapsed:.2f} с"
+    assert len(structure.encode()) / 1024 < STRUCTURE_SIZE_LIMIT_KB

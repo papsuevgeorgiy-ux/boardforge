@@ -8,6 +8,49 @@ from shapely.geometry import Polygon
 from .units import EPS
 
 
+def _min_rect_side(geometry: object) -> float:
+    """Короткая сторона минимального повёрнутого прямоугольника.
+
+    Габаритная рамка для этого не годится: у клина под 45° она большая,
+    а сам клин тонкий. Проверка безопасности, построенная на рамке, пропустит
+    ровно те детали, ради которых заведена.
+    """
+    rectangle = geometry.minimum_rotated_rectangle  # type: ignore[attr-defined]
+    boundary = getattr(rectangle, "exterior", None)
+    if boundary is None:
+        return 0.0
+    points = list(boundary.coords)[:-1]
+    if len(points) < 4:
+        return 0.0
+    return min(
+        math.dist(points[index], points[(index + 1) % len(points)])
+        for index in range(len(points))
+    )
+
+
+def _min_corner_angle(geometry: object) -> float:
+    """Самый острый угол контура. Для набора фигур — самый острый по всем."""
+    shapes = list(getattr(geometry, "geoms", [geometry]))
+    smallest = 180.0
+    for shape in shapes:
+        boundary = getattr(shape, "exterior", None)
+        if boundary is None:
+            continue
+        points = list(boundary.coords)[:-1]
+        count = len(points)
+        for index in range(count):
+            here = points[index]
+            first = (points[index - 1][0] - here[0], points[index - 1][1] - here[1])
+            following = points[(index + 1) % count]
+            second = (following[0] - here[0], following[1] - here[1])
+            length = math.hypot(*first) * math.hypot(*second)
+            if length < EPS:
+                continue
+            cosine = (first[0] * second[0] + first[1] * second[1]) / length
+            smallest = min(smallest, math.degrees(math.acos(max(-1.0, min(1.0, cosine)))))
+    return smallest
+
+
 @dataclass(frozen=True, slots=True)
 class Origin:
     """Откуда приехал кусок дерева: щит, рейка в нём и место по длине рейки.
@@ -98,6 +141,21 @@ class Piece:
         """Площадь ячейки в плоскости модели."""
         return self.polygon.area
 
+    @property
+    def min_width_mm(self) -> float:
+        """Настоящая ширина ячейки — короткая сторона минимального прямоугольника.
+
+        Габаритная рамка здесь не годится: у клина под 45° она большая, а сам
+        клин тонкий. Меряем по повёрнутому прямоугольнику, иначе проверка
+        безопасности пропустит ровно те детали, ради которых заведена.
+        """
+        return _min_rect_side(self.polygon)
+
+    @property
+    def min_angle_deg(self) -> float:
+        """Самый острый угол ячейки."""
+        return _min_corner_angle(self.polygon)
+
 
 @dataclass(frozen=True, slots=True)
 class Part:
@@ -109,6 +167,8 @@ class Part:
 
     pieces: tuple[Piece, ...]
     thickness_mm: float
+    _index: object | None = field(default=None, init=False, repr=False, compare=False)
+    """Ленивый пространственный индекс для `species_at`. На равенство не влияет."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "pieces", tuple(self.pieces))
@@ -146,22 +206,62 @@ class Part:
         return sum(piece.area_mm2 for piece in self.pieces)
 
     def species_at(self, x: float, y: float) -> str | None:
-        """Порода в точке плана. Нужна тестам и подсказкам в UI."""
+        """Порода в точке плана. Нужна тестам и подсказкам в UI.
+
+        Через пространственный индекс: у углового узора ячеек сотни, а точку
+        спрашивают тысячами, и линейный перебор превращал проверку сходимости
+        швов в минуты.
+        """
+        from shapely import STRtree
         from shapely.geometry import Point
 
+        tree = self._index
+        if tree is None:
+            tree = STRtree([piece.polygon for piece in self.pieces])
+            object.__setattr__(self, "_index", tree)
+
         point = Point(x, y)
-        for piece in self.pieces:
+        for index in tree.query(point):
+            piece = self.pieces[index]
             if piece.polygon.covers(point):
                 return piece.species
         return None
 
     def has_degenerate(self, min_size_mm: float) -> bool:
         """Есть ли ячейка тоньше порога — слишком тонкие детали опасно пилить."""
-        for piece in self.pieces:
-            xmin, ymin, xmax, ymax = piece.polygon.bounds
-            if min(xmax - xmin, ymax - ymin) < min_size_mm - EPS:
-                return True
-        return False
+        return self.min_width_mm < min_size_mm - EPS
+
+    @property
+    def min_width_mm(self) -> float:
+        """Ширина самой тонкой ячейки детали."""
+        return min(piece.min_width_mm for piece in self.pieces)
+
+    @property
+    def min_angle_deg(self) -> float:
+        """Самый острый угол среди ячеек детали."""
+        return min(piece.min_angle_deg for piece in self.pieces)
+
+    @property
+    def outline(self) -> object:
+        """Контур детали целиком: ячейки внутри неё уже склеены между собой.
+
+        Разница принципиальная. Ячейка — это область породы в куске дерева,
+        а не отдельная деталь: её склеили несколько операций назад, и в руки
+        её никто не берёт. По станку едет **деталь**, и опасен её контур.
+        """
+        from shapely.ops import unary_union
+
+        return unary_union([piece.polygon for piece in self.pieces])
+
+    @property
+    def outline_min_width_mm(self) -> float:
+        """Ширина детали целиком — та, при которой полосу затягивает под диск."""
+        return _min_rect_side(self.outline)
+
+    @property
+    def outline_min_angle_deg(self) -> float:
+        """Самый острый угол контура детали: острый нос скалывается на склейке."""
+        return _min_corner_angle(self.outline)
 
 
 type Billet = tuple[Part, ...]

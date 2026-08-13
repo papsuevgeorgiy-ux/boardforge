@@ -8,8 +8,9 @@
 
 from dataclasses import dataclass
 
+from ..core import safety
 from ..core.ops import Assemble, Crop, Crosscut, Cut, Glue, Operation, StandOnEnd
-from ..core.program import Issue, Program
+from ..core.program import Issue, Program, ProgramError
 from ..core.species import Species
 from ..core.units import Units
 
@@ -157,7 +158,7 @@ def issue_views(program: Program, failure: str = "") -> list[IssueView]:
                 where="При сборке доски",
             )
         )
-    for issue in program.validate():
+    for issue in program.validate() + _safety_issues(program):
         if issue.index is None:
             where = "Программа целиком"
         else:
@@ -173,6 +174,21 @@ def issue_views(program: Program, failure: str = "") -> list[IssueView]:
             )
         )
     return views
+
+
+def _safety_issues(program: Program) -> list[Issue]:
+    """Замечания об изготовимости — те, что видны только после исполнения.
+
+    Программу здесь могло и не собрать: пользователь крутит параметры, и
+    промежуточное состояние бывает неисполнимым. Про это уже сказано выше
+    строкой `failure`, второй раз падать незачем.
+    """
+    if program.errors:
+        return []
+    try:
+        return safety.inspect(program, program.run())
+    except (ProgramError, ValueError):
+        return []
 
 
 def verdict(issues: list[IssueView]) -> str:

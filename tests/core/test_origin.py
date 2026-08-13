@@ -27,7 +27,7 @@ def test_glue_numbers_strips_in_order() -> None:
 def test_crosscut_advances_offset_along_the_strip() -> None:
     """Каждая следующая полоса отрезана глубже по рейке ровно на шаг."""
     panel = glue((Strip(MAPLE, 40.0),), 200.0, 20.0, "A")
-    parts, _ = slice_part(panel, 90.0, 50.0, along_strip=True)
+    parts = slice_part(panel, 90.0, 50.0, along_strip=True).parts
     offsets = [part.pieces[0].origin.offset_mm for part in parts]
     assert offsets == pytest.approx([0.0, 50.0, 100.0, 150.0])
 
@@ -35,7 +35,7 @@ def test_crosscut_advances_offset_along_the_strip() -> None:
 def test_plan_cut_keeps_offset() -> None:
     """Рез в плане делит один и тот же срез рейки: смещению меняться неоткуда."""
     panel = glue((Strip(MAPLE, 120.0),), 100.0, 20.0, "A")
-    parts, _ = slice_part(panel, 90.0, 40.0)
+    parts = slice_part(panel, 90.0, 40.0).parts
     assert {part.pieces[0].origin.offset_mm for part in parts} == {0.0}
 
 

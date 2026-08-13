@@ -10,6 +10,7 @@
 """
 
 import math
+from dataclasses import dataclass
 
 from shapely.affinity import rotate, scale, translate
 from shapely.geometry import box
@@ -21,6 +22,28 @@ from .piece import Orientation, Origin, Part, Piece
 from .units import EPS
 
 _BAND_MARGIN_MM = 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class SliceResult:
+    """Что вышло из реза: полосы, недорез по длине и площадь отхода.
+
+    `remainder_mm` и `waste_mm2` — разные величины, и при угловом резе вторая
+    из первой не выводится. Недорез это длина вдоль оси реза, а отход —
+    площадь куска, который в полосы не попал; у прямого реза он прямоугольный,
+    у углового клиновидный, и площади у них разные при одном и том же недорезе.
+    """
+
+    parts: list[Part]
+    remainder_mm: float
+    waste_mm2: float
+    placements_mm: list[tuple[float, float]]
+    """Где лежала каждая полоса в системе координат реза до приведения к началу.
+
+    Отрезанная полоса своих координат в щите не помнит — и правильно делает
+    (см. заголовок модуля). Но собрать её обратно так, чтобы узор сошёлся,
+    без этого нельзя: параметрические генераторы считают сдвиги отсюда.
+    """
 
 
 def _polygons(geom: BaseGeometry) -> list[Polygon]:
@@ -71,7 +94,7 @@ def glue(
 
 def slice_part(
     part: Part, angle_deg: float, step_mm: float, along_strip: bool = False
-) -> tuple[list[Part], float]:
+) -> SliceResult:
     """Разрезать деталь на полосы шага `step_mm` под углом `angle_deg` к кромке.
 
     Возвращает полосы и остаток — кусок короче шага, который уходит в отход.
@@ -104,6 +127,7 @@ def slice_part(
         )
 
     result: list[Part] = []
+    placements: list[tuple[float, float]] = []
     for index in range(count):
         left = xmin + index * step_mm
         band = box(left, ymin - _BAND_MARGIN_MM, left + step_mm, ymax + _BAND_MARGIN_MM)
@@ -116,9 +140,19 @@ def slice_part(
                     origin = origin.shifted(polygon.bounds[0] - start)
                 pieces.append(Piece(polygon, origin, piece.orientation))
         if pieces:
-            result.append(normalized(Part(tuple(pieces), part.thickness_mm)))
+            strip = Part(tuple(pieces), part.thickness_mm)
+            placements.append(strip.bounds[:2])
+            result.append(normalized(strip))
 
-    return result, span - count * step_mm
+    tail = box(
+        xmin + count * step_mm,
+        ymin - _BAND_MARGIN_MM,
+        xmax + _BAND_MARGIN_MM,
+        ymax + _BAND_MARGIN_MM,
+    )
+    waste = sum(piece.polygon.intersection(tail).area for piece in turned)
+
+    return SliceResult(result, span - count * step_mm, waste, placements)
 
 
 def stand_on_end(part: Part, crosscut_step_mm: float) -> Part:
@@ -195,9 +229,12 @@ def assemble(
     Детали приходят уже выбранными: какие именно и из каких заготовок,
     решает исполнитель программы.
 
-    `flipped` (Р7) на узор не влияет — состав ряда от переворота не меняется, —
-    но меняет рисунок волокон, поэтому доходит до детали разворотом, а не
-    преобразованием полигона.
+    `flipped` (Р7, уточнён Р21) — переворот детали на другую сторону: отражение
+    полигона поперёк продольной оси плюс отражение в развороте. Состав ряда при
+    этом не меняется, как и обещал Р7: порядок ячеек вдоль оси отражение
+    не трогает. А вот наклон меняет — у прямоугольной ячейки отражение
+    тождественно, у наклонной нет, и это единственный способ получить встречный
+    наклон из одного щита.
     """
     if not parts:
         raise ValueError("нечего склеивать")
@@ -226,9 +263,14 @@ def assemble(
                 source.thickness_mm,
             )
         if flipped_flags is not None and flipped_flags[slot]:
+            axis = source.width_mm / 2
             source = Part(
                 tuple(
-                    Piece(piece.polygon, piece.origin, piece.orientation.flipped())
+                    Piece(
+                        scale(piece.polygon, xfact=-1.0, yfact=1.0, origin=(axis, 0.0)),
+                        piece.origin,
+                        piece.orientation.flipped(),
+                    )
                     for piece in source.pieces
                 ),
                 source.thickness_mm,

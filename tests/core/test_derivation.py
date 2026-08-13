@@ -39,7 +39,7 @@ def test_adjacent_same_species_merge() -> None:
     panel = glue(
         (Strip(MAPLE, 40.0), Strip(MAPLE, 30.0), Strip(WALNUT, 20.0)), 100.0, 20.0, "A"
     )
-    strips, _ = slice_part(panel, 90.0, 50.0)
+    strips = slice_part(panel, 90.0, 50.0).parts
     strip = stand_on_end(strips[0], crosscut_step_mm=50.0)
     assert cell_sequence(strip) == ((WALNUT, 20.0), (MAPLE, 70.0))
 

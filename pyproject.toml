@@ -39,4 +39,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# Свой basetemp вместо системного %TEMP%: там заводится каталог с битыми ACL,
+# и tmp_path падает PermissionError ещё до первого теста.
+addopts = "-q --basetemp=.pytest-tmp"

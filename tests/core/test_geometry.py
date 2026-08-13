@@ -40,21 +40,21 @@ def test_glue_keeps_species_order() -> None:
 
 def test_crosscut_yields_whole_strips_only() -> None:
     """Из щита 600 мм с шагом 45 выходит 13 полос, 15 мм уходит в остаток."""
-    strips, remainder = geometry.slice_part(panel(), 90.0, 45.0)
-    assert len(strips) == 13
-    assert remainder == pytest.approx(15.0)
+    sliced = geometry.slice_part(panel(), 90.0, 45.0)
+    assert len(sliced.parts) == 13
+    assert sliced.remainder_mm == pytest.approx(15.0)
 
 
 def test_crosscut_without_remainder() -> None:
     """Кратный шаг не оставляет обрезка и не теряет полосу на округлении."""
-    strips, remainder = geometry.slice_part(panel(), 90.0, 40.0)
-    assert len(strips) == 15
-    assert remainder == pytest.approx(0.0, abs=1e-6)
+    sliced = geometry.slice_part(panel(), 90.0, 40.0)
+    assert len(sliced.parts) == 15
+    assert sliced.remainder_mm == pytest.approx(0.0, abs=1e-6)
 
 
 def test_crosscut_strip_dimensions() -> None:
     """Полоса: шаг реза по X (вдоль волокон), ширина щита по Y."""
-    strips, _ = geometry.slice_part(panel(), 90.0, 40.0)
+    strips = geometry.slice_part(panel(), 90.0, 40.0).parts
     strip = strips[0]
     assert strip.width_mm == pytest.approx(40.0)
     assert strip.length_mm == pytest.approx(160.0)
@@ -70,7 +70,7 @@ def test_crosscut_step_larger_than_panel_rejected() -> None:
 
 def test_stand_on_end_swaps_dimensions() -> None:
     """Шаг торцовки уходит в высоту доски, толщина щита — в план."""
-    strips, _ = geometry.slice_part(panel(thickness=30.0), 90.0, 40.0)
+    strips = geometry.slice_part(panel(thickness=30.0), 90.0, 40.0).parts
     standing = geometry.stand_on_end(strips[0], crosscut_step_mm=40.0)
     assert standing.width_mm == pytest.approx(30.0)
     assert standing.length_mm == pytest.approx(160.0)
@@ -79,7 +79,7 @@ def test_stand_on_end_swaps_dimensions() -> None:
 
 def test_stand_on_end_keeps_species_layout() -> None:
     """Смена плоскости не перемешивает породы вдоль полосы."""
-    strips, _ = geometry.slice_part(panel(thickness=30.0), 90.0, 40.0)
+    strips = geometry.slice_part(panel(thickness=30.0), 90.0, 40.0).parts
     before = strips[0]
     after = geometry.stand_on_end(before, crosscut_step_mm=40.0)
     for y in (20.0, 60.0, 100.0, 140.0):
@@ -88,7 +88,7 @@ def test_stand_on_end_keeps_species_layout() -> None:
 
 def test_angled_cut_gives_parallelograms() -> None:
     """Рез под 45° даёт скошенные детали, а не прямоугольники."""
-    strips, _ = geometry.slice_part(panel(length=400.0), 45.0, 50.0)
+    strips = geometry.slice_part(panel(length=400.0), 45.0, 50.0).parts
     middle = strips[len(strips) // 2]
     assert middle.width_mm == pytest.approx(50.0)
     corners = len(middle.pieces[0].polygon.exterior.coords) - 1
@@ -98,7 +98,7 @@ def test_angled_cut_gives_parallelograms() -> None:
 
 def test_assemble_stacks_across_x() -> None:
     """Склейка кладёт детали поперёк по X, как и первая склейка реек."""
-    strips, _ = geometry.slice_part(panel(), 90.0, 40.0)
+    strips = geometry.slice_part(panel(), 90.0, 40.0).parts
     board = geometry.assemble(strips[:3], (False,) * 3, (0.0,) * 3)
     assert board.width_mm == pytest.approx(120.0)
     assert board.length_mm == pytest.approx(160.0)
@@ -106,14 +106,14 @@ def test_assemble_stacks_across_x() -> None:
 
 def test_assemble_offsets_shift_along_y() -> None:
     """Сдвиг полосы удлиняет щит: край получается рваным, его срежет Crop."""
-    strips, _ = geometry.slice_part(panel(), 90.0, 40.0)
+    strips = geometry.slice_part(panel(), 90.0, 40.0).parts
     board = geometry.assemble(strips[:2], (False, False), (0.0, 40.0))
     assert board.length_mm == pytest.approx(200.0)
 
 
 def test_assemble_reversed_flips_row_order() -> None:
     """Разворот на 180° переставляет ячейки ряда задом наперёд."""
-    strips, _ = geometry.slice_part(panel(), 90.0, 40.0)
+    strips = geometry.slice_part(panel(), 90.0, 40.0).parts
     straight = geometry.assemble(strips[:1], (False,), (0.0,))
     turned = geometry.assemble(strips[:1], (True,), (0.0,))
     for y in (20.0, 60.0, 100.0, 140.0):
@@ -122,15 +122,15 @@ def test_assemble_reversed_flips_row_order() -> None:
 
 def test_assemble_rejects_mixed_thickness() -> None:
     """Детали разной толщины в один щит не идут — и об этом говорится с числами."""
-    thick, _ = geometry.slice_part(panel(thickness=30.0), 90.0, 40.0)
-    thin, _ = geometry.slice_part(panel(thickness=20.0), 90.0, 40.0)
+    thick = geometry.slice_part(panel(thickness=30.0), 90.0, 40.0).parts
+    thin = geometry.slice_part(panel(thickness=20.0), 90.0, 40.0).parts
     with pytest.raises(ValueError, match="разной толщины"):
         geometry.assemble([thick[0], thin[0]], (False, False), (0.0, 0.0))
 
 
 def test_stand_on_end_guards_its_precondition() -> None:
     """Масштаб по X равен повороту только сразу после торцовки — иначе падаем."""
-    strips, _ = geometry.slice_part(panel(), 90.0, 40.0)
+    strips = geometry.slice_part(panel(), 90.0, 40.0).parts
     narrowed = geometry.crop(strips[0], left=5.0, right=0.0, top=0.0, bottom=0.0)
     with pytest.raises(ValueError, match="не сводится к масштабу|шагу торцовки"):
         geometry.stand_on_end(narrowed, crosscut_step_mm=40.0)
@@ -138,7 +138,7 @@ def test_stand_on_end_guards_its_precondition() -> None:
 
 def test_stand_on_end_guards_against_angled_cut() -> None:
     """Косая ячейка не прямоугольна — поворот на торец для неё не масштаб."""
-    strips, _ = geometry.slice_part(panel(length=400.0), 45.0, 50.0)
+    strips = geometry.slice_part(panel(length=400.0), 45.0, 50.0).parts
     with pytest.raises(ValueError, match="не сводится к масштабу|шагу торцовки"):
         geometry.stand_on_end(strips[len(strips) // 2], crosscut_step_mm=50.0)
 

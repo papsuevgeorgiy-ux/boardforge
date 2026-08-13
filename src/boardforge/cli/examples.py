@@ -11,6 +11,7 @@
 from collections.abc import Callable, Sequence
 
 from ..core.ops import Assemble, Crop, Crosscut, Glue, PieceRef, StandOnEnd, Strip
+from ..core.patterns import StripedPanel, chevron, herringbone
 from ..core.program import Program
 
 PANEL = "A"
@@ -88,6 +89,47 @@ def tropical() -> Program:
     )
 
 
+def _striped() -> StripedPanel:
+    """Полосатая заготовка под угловые узоры.
+
+    Породный цикл повторён трижды: при одном сдвиг ряда переносить не на что
+    и часть швов остаётся без материала — валидатор про это предупреждает.
+    """
+    return StripedPanel(
+        species=("maple_hard", "walnut_black", "cherry"),
+        strip_width_mm=36.0,
+        board_height_mm=40.0,
+        column_width_mm=20.0,
+        columns=12,
+        # Накопленный сдвиг рядов съедает высоту, и прямоугольник после обрезки
+        # выходит тем ниже, чем короче щит. Шесть циклов дают доску, на которой
+        # узор виден целиком, а не полоской.
+        repeats=6,
+    )
+
+
+ANGLE_DEG = 45.0
+CUT_STEP_MM = 40.0
+TRIM = 3
+"""Крайние полосы при угловом резе выходят короткими, и щит из них рваный.
+Отбраковка трёх с каждой стороны оставляет ряды сопоставимой длины — только
+тогда из щита выходит прямоугольник, а не лестница: 360 × 200 мм."""
+
+
+def chevron_board() -> Program:
+    """Шеврон: породные линии сходятся на швах в непрерывный зигзаг."""
+    return chevron(
+        _striped(), angle_deg=ANGLE_DEG, step_mm=CUT_STEP_MM, trim=TRIM, square=True
+    )
+
+
+def herringbone_board() -> Program:
+    """Ёлочка: тот же рез и то же зеркало, зигзаг разорван на полшага."""
+    return herringbone(
+        _striped(), angle_deg=ANGLE_DEG, step_mm=CUT_STEP_MM, trim=TRIM, square=True
+    )
+
+
 STAND_SPECIES = "ash"
 STAND_CELLS = 8
 STAND_CELL_MM = 55.0
@@ -159,6 +201,8 @@ EXAMPLES: dict[str, Board] = {
     "checkerboard": ("шахматка клён / орех", checkerboard),
     "strong-rings": ("ясень, дуб, граб — сильные кольца", strong_rings),
     "tropical": ("падук, амарант, венге, ятоба, сапеле", tropical),
+    "chevron": ("шеврон: клён / орех / вишня под 45°", chevron_board),
+    "herringbone": ("ёлочка: тот же рез, зигзаг разорван", herringbone_board),
 }
 
 DIAGNOSTICS: dict[str, Board] = {

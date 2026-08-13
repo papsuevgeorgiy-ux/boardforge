@@ -81,13 +81,14 @@ def _tail_areas(part: Part, angle_deg: float, remainder_mm: float) -> dict[str, 
 def test_cut_conserves_area(part: Part, angle: float, step: float) -> None:
     """Сумма площадей деталей плюс отход равна площади входа."""
     try:
-        parts, remainder = slice_part(part, angle, step)
+        sliced = slice_part(part, angle, step)
     except ValueError:
         assume(False)
 
-    kept = sum(item.area_mm2 for item in parts)
-    tail = sum(_tail_areas(part, angle, remainder).values())
+    kept = sum(item.area_mm2 for item in sliced.parts)
+    tail = sum(_tail_areas(part, angle, sliced.remainder_mm).values())
     assert kept + tail == pytest.approx(part.area_mm2, **TOLERANCE)
+    assert sliced.waste_mm2 == pytest.approx(tail, abs=1e-6)
 
 
 @given(part=panels, angle=angles, step=steps)
@@ -95,12 +96,12 @@ def test_cut_conserves_area(part: Part, angle: float, step: float) -> None:
 def test_cut_conserves_each_species(part: Part, angle: float, step: float) -> None:
     """Порода не подменяется: сохраняется площадь каждой по отдельности."""
     try:
-        parts, remainder = slice_part(part, angle, step)
+        sliced = slice_part(part, angle, step)
     except ValueError:
         assume(False)
 
-    kept = _areas_by_species(parts)
-    tail = _tail_areas(part, angle, remainder)
+    kept = _areas_by_species(sliced.parts)
+    tail = _tail_areas(part, angle, sliced.remainder_mm)
     expected = _areas_by_species([part])
 
     assert set(kept) <= set(expected)
@@ -116,7 +117,7 @@ def test_cut_remainder_is_shorter_than_step(
 ) -> None:
     """Остаток по определению короче шага — иначе из него вышла бы ещё деталь."""
     try:
-        _, remainder = slice_part(part, angle, step)
+        remainder = slice_part(part, angle, step).remainder_mm
     except ValueError:
         assume(False)
 
@@ -128,7 +129,7 @@ def test_cut_remainder_is_shorter_than_step(
 def test_cut_pieces_fit_the_step(part: Part, angle: float, step: float) -> None:
     """Ни одна деталь не шире шага реза."""
     try:
-        parts, _ = slice_part(part, angle, step)
+        parts = slice_part(part, angle, step).parts
     except ValueError:
         assume(False)
 
@@ -141,7 +142,7 @@ def test_cut_pieces_fit_the_step(part: Part, angle: float, step: float) -> None:
 def test_assemble_conserves_area(part: Part, angle: float, step: float) -> None:
     """Склейка ничего не теряет: площадь щита — сумма площадей деталей."""
     try:
-        parts, _ = slice_part(part, angle, step)
+        parts = slice_part(part, angle, step).parts
     except ValueError:
         assume(False)
 
@@ -159,7 +160,7 @@ def test_crop_never_grows_the_board(
 ) -> None:
     """Обрезка только убавляет: щит после неё не может стать больше."""
     try:
-        parts, _ = slice_part(part, angle, step)
+        parts = slice_part(part, angle, step).parts
     except ValueError:
         assume(False)
 

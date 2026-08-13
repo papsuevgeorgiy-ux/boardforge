@@ -278,3 +278,24 @@ def test_project_downloads_as_json(client: TestClient) -> None:
     assert response.status_code == 200
     assert "attachment" in response.headers["content-disposition"]
     assert json.loads(response.text)["operations"]
+
+
+def test_species_cycle_warning_reaches_the_page(tmp_path) -> None:
+    """Нехватку породных циклов человек видит в списке замечаний, а не в дыре.
+
+    Сквозная проверка требования Дня 3: замечание должно доезжать до страницы
+    с номером операции, до того как кто-то станет разглядывать превью.
+    """
+    from boardforge.core.patterns import StripedPanel, chevron
+
+    panel = StripedPanel(
+        species=("maple_hard", "walnut_black", "cherry"),
+        columns=10,
+        repeats=1,
+    )
+    client = TestClient(create_app(chevron(panel)))
+
+    page = client.get("/").text
+    assert "породным циклом" in page
+    assert "предупреждение" in page
+    assert "Операция 1 — Glue" in page
