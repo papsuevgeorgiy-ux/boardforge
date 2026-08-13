@@ -57,6 +57,34 @@ def build_checkerboard() -> Program:
     )
 
 
+def build_grid(columns: int, rows: int, cell_mm: float = 20.0) -> Program:
+    """Доска `columns` × `rows` ячеек из одного щита — нагрузка для рендера.
+
+    Породы чередуются по рейкам, поэтому у каждого ряда своя текстура: рендер
+    не может сжульничать, нарисовав всё одним элементом.
+    """
+    palette = (MAPLE, WALNUT, CHERRY)
+    strips = tuple(Strip(palette[index % len(palette)], cell_mm) for index in range(rows))
+    return Program(
+        operations=(
+            Glue(
+                id=PANEL,
+                strips=strips,
+                length_mm=cell_mm * columns,
+                thickness_mm=cell_mm,
+            ),
+            Crosscut(source=PANEL, step_mm=cell_mm),
+            StandOnEnd(source=PANEL),
+            Assemble(
+                id=BOARD,
+                pieces=tuple(PieceRef(PANEL, index) for index in range(columns)),
+                reversed=(False,) * columns,
+                offsets_mm=(0.0,) * columns,
+            ),
+        )
+    )
+
+
 def build_two_panels() -> Program:
     """Доска из двух разных щитов: ряды чередуются составом, а не сдвигом.
 

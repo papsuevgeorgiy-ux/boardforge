@@ -37,7 +37,7 @@ def test_adjacent_same_species_merge() -> None:
     from boardforge.core.ops import Strip
 
     panel = glue(
-        (Strip(MAPLE, 40.0), Strip(MAPLE, 30.0), Strip(WALNUT, 20.0)), 100.0, 20.0
+        (Strip(MAPLE, 40.0), Strip(MAPLE, 30.0), Strip(WALNUT, 20.0)), 100.0, 20.0, "A"
     )
     strips, _ = slice_part(panel, 90.0, 50.0)
     strip = stand_on_end(strips[0], crosscut_step_mm=50.0)
@@ -49,7 +49,7 @@ def test_cell_sequence_refuses_a_panel() -> None:
     from boardforge.core.geometry import glue
     from boardforge.core.ops import Strip
 
-    panel = glue((Strip(MAPLE, 40.0), Strip(WALNUT, 20.0)), 100.0, 20.0)
+    panel = glue((Strip(MAPLE, 40.0), Strip(WALNUT, 20.0)), 100.0, 20.0, "A")
     with pytest.raises(ValueError, match="это щит, а не полоса"):
         cell_sequence(panel)
 

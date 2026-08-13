@@ -279,12 +279,14 @@ class Program:
             match op:
                 case Glue():
                     billets[op.id] = (
-                        geometry.glue(op.strips, op.length_mm, op.thickness_mm),
+                        geometry.glue(op.strips, op.length_mm, op.thickness_mm, op.id),
                     )
 
                 case Crosscut():
                     source = billets[op.source][0]
-                    parts, remainder = geometry.slice_part(source, 90.0, op.step_mm)
+                    parts, remainder = geometry.slice_part(
+                        source, 90.0, op.step_mm, along_strip=True
+                    )
                     billets[op.source] = tuple(parts)
                     crosscut_steps[op.source] = op.step_mm
                     cuts.append(
@@ -324,7 +326,9 @@ class Program:
                 case Assemble():
                     selected = [self._resolve(billets, ref) for ref in op.pieces]
                     billets[op.id] = (
-                        geometry.assemble(selected, op.reversed, op.offsets_mm),
+                        geometry.assemble(
+                            selected, op.reversed, op.offsets_mm, op.flipped
+                        ),
                     )
 
                 case Crop():

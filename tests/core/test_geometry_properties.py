@@ -34,6 +34,7 @@ panels = st.builds(
     ).map(tuple),
     length_mm=st.floats(50.0, 600.0),
     thickness_mm=st.floats(10.0, 60.0),
+    billet=st.just("A"),
 )
 
 angles = st.floats(1.0, 179.0)

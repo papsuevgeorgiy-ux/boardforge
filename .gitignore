@@ -8,3 +8,5 @@ build/
 *.egg-info/
 CLAUDE.local.md
 out/
+
+.claude/launch.json

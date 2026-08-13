@@ -1,0 +1,16 @@
+{#
+  Превью доски. Пока `full` не выставлен, здесь стоит только структура,
+  и элемент сам просит текстуру через паузу. Как только текстура пришла,
+  hx-get исчезает — второй раз просить нечего.
+#}
+<div id="board" class="board{% if not full %} board--waiting{% endif %}"
+     {% if not full and svg %}hx-get="/fragment/board?full=1"
+     hx-trigger="load delay:{{ texture_delay_ms }}ms"
+     hx-swap="outerHTML"{% endif %}>
+  {% if svg %}
+    {{ svg | safe }}
+  {% else %}
+    <p class="board__empty">Доска не собирается — смотрите разбор справа.
+      {% if failure %}<br><span class="board__reason">{{ failure }}</span>{% endif %}</p>
+  {% endif %}
+</div>

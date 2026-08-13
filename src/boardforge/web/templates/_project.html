@@ -1,0 +1,20 @@
+<div id="project" class="panel"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>Проект</h2>
+  <p class="panel__hint">В файле лежит программа операций, а не картинка:
+    его можно читать глазами и класть в git.</p>
+  <form class="project__form">
+    <label>Файл
+      <input type="text" name="path" value="{{ default_path }}"
+             aria-label="Путь к файлу проекта">
+    </label>
+    <div class="panel__actions">
+      <button type="submit" formmethod="post" class="primary"
+              hx-post="/project/save" hx-target="#board" hx-swap="outerHTML"
+              >Сохранить</button>
+      <button type="submit" formmethod="post"
+              hx-post="/project/open" hx-target="#board" hx-swap="outerHTML"
+              >Открыть</button>
+      <a class="button" href="/project.json" download>Скачать JSON</a>
+    </div>
+  </form>
+</div>

@@ -17,7 +17,7 @@ def panel(length: float = 600.0, thickness: float = 30.0):
         Strip(MAPLE, 40.0),
         Strip(WALNUT, 40.0),
     )
-    return geometry.glue(strips, length, thickness)
+    return geometry.glue(strips, length, thickness, "A")
 
 
 def test_glue_lays_strips_across_x() -> None:

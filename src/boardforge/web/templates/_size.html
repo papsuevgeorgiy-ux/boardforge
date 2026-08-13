@@ -1,0 +1,36 @@
+<div id="size" class="panel"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>Габарит</h2>
+  {% if size %}
+    <p class="size__now">Сейчас: <strong>{{ size.width }}</strong> ×
+      <strong>{{ size.length }}</strong> × <strong>{{ size.height }}</strong>,
+      ячеек {{ size.cells }}</p>
+  {% else %}
+    <p class="size__now size__now--broken">Габарита нет: программа не исполняется.</p>
+  {% endif %}
+  <p class="panel__hint">Введите желаемый размер — программа перепишется под
+    него. Сам размер нигде не хранится: истина остаётся в операциях, поэтому
+    попасть можно только в достижимое.</p>
+  <form hx-post="/size" hx-target="#board" hx-swap="outerHTML" class="size__form">
+    <label>Ширина
+      <input type="number" name="width" step="1" min="1"
+             value="{{ '%g'|format(board.width_mm) if board else 400 }}">
+    </label>
+    <label>Длина
+      <input type="number" name="length" step="1" min="1"
+             value="{{ '%g'|format(board.length_mm) if board else 300 }}">
+    </label>
+    <label>Высота
+      <input type="number" name="height" step="1" min="1"
+             value="{{ '%g'|format(board.thickness_mm) if board else 40 }}">
+    </label>
+    <button type="submit" class="primary">Подобрать</button>
+  </form>
+  <form hx-post="/units" hx-target="#board" hx-swap="outerHTML" class="units">
+    <span>Показывать в:</span>
+    {% for key, label in (("mm", "мм"), ("inch", "дюймах")) %}
+      <button type="submit" name="units" value="{{ key }}"
+              class="units__button{% if units.key == key %} units__button--on{% endif %}"
+              >{{ label }}</button>
+    {% endfor %}
+  </form>
+</div>

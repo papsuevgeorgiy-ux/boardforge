@@ -1,0 +1,20 @@
+<section id="program" class="panel program"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>Программа</h2>
+  <p class="panel__hint">Доска — это последовательность столярных операций.
+    Узор, раскрой и смета выводятся из неё, а не хранятся отдельно.</p>
+  <ol class="program__list">
+    {% for op in operations %}
+      <li class="op{% if op.broken %} op--broken{% endif %}">
+        <span class="op__number">{{ op.number }}</span>
+        <div class="op__body">
+          <span class="op__kind">{{ op.kind }}</span>
+          <p class="op__title">{{ op.title }}</p>
+          <p class="op__detail">{{ op.detail }}</p>
+          {% for message in op.issues %}
+            <p class="op__issue">{{ message }}</p>
+          {% endfor %}
+        </div>
+      </li>
+    {% endfor %}
+  </ol>
+</section>

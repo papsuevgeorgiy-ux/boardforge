@@ -1,0 +1,28 @@
+<form id="strips" class="panel"{% if oob %} hx-swap-oob="true"{% endif %} hx-post="/strips" hx-target="#board"
+      hx-swap="outerHTML">
+  <h2>Состав щита</h2>
+  <p class="panel__hint">Рейки склеиваются кромка к кромке. Их набор задаёт
+    длину доски, а порядок пород — сам узор.</p>
+  <ol class="strips">
+    {% for strip in strips %}
+      <li class="strip">
+        <select name="species" aria-label="Порода рейки {{ loop.index }}">
+          {% for key, item in catalogue.items() %}
+            <option value="{{ key }}"
+              {% if key == strip.species %}selected{% endif %}>{{ item.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="number" name="width" step="0.5" min="1"
+               value="{{ '%g'|format(strip.width_mm) }}"
+               aria-label="Ширина рейки {{ loop.index }}, мм">
+        <span class="strip__units">мм</span>
+        <button type="submit" name="action" value="remove:{{ loop.index0 }}"
+                class="strip__remove" title="Убрать рейку">×</button>
+      </li>
+    {% endfor %}
+  </ol>
+  <div class="panel__actions">
+    <button type="submit" name="action" value="apply" class="primary">Применить</button>
+    <button type="submit" name="action" value="add">Добавить рейку</button>
+  </div>
+</form>

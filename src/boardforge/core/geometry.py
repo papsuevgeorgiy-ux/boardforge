@@ -17,7 +17,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 
 from .ops import Strip
-from .piece import Part, Piece
+from .piece import Orientation, Origin, Part, Piece
 from .units import EPS
 
 _BAND_MARGIN_MM = 1.0
@@ -42,32 +42,52 @@ def normalized(part: Part) -> Part:
     if abs(xmin) < EPS and abs(ymin) < EPS:
         return part
     moved = tuple(
-        Piece(translate(piece.polygon, -xmin, -ymin), piece.species)
+        Piece(translate(piece.polygon, -xmin, -ymin), piece.origin, piece.orientation)
         for piece in part.pieces
     )
     return Part(moved, part.thickness_mm)
 
 
-def glue(strips: tuple[Strip, ...], length_mm: float, thickness_mm: float) -> Part:
-    """Склейка реек кромка-к-кромке: рейки по X, длина по Y."""
+def glue(
+    strips: tuple[Strip, ...], length_mm: float, thickness_mm: float, billet: str
+) -> Part:
+    """Склейка реек кромка-к-кромке: рейки по X, длина по Y.
+
+    Здесь и только здесь заводится происхождение ячеек: дальше по программе
+    оно уже не создаётся, а переносится.
+    """
     pieces: list[Piece] = []
     cursor = 0.0
-    for strip in strips:
+    for index, strip in enumerate(strips):
         pieces.append(
-            Piece(box(cursor, 0.0, cursor + strip.width_mm, length_mm), strip.species)
+            Piece(
+                box(cursor, 0.0, cursor + strip.width_mm, length_mm),
+                Origin(billet, index, 0.0, strip.species),
+            )
         )
         cursor += strip.width_mm
     return Part(tuple(pieces), thickness_mm)
 
 
-def slice_part(part: Part, angle_deg: float, step_mm: float) -> tuple[list[Part], float]:
+def slice_part(
+    part: Part, angle_deg: float, step_mm: float, along_strip: bool = False
+) -> tuple[list[Part], float]:
     """Разрезать деталь на полосы шага `step_mm` под углом `angle_deg` к кромке.
 
     Возвращает полосы и остаток — кусок короче шага, который уходит в отход.
     Неполная полоса деталью не считается: из неё не выйдет нужного размера.
+
+    `along_strip` — идёт ли рез поперёк рейки, вдоль её длины (торцовка). Тогда
+    каждая полоса уходит по рейке глубже предыдущей, и смещение в происхождении
+    растёт. Рез в плане после `StandOnEnd` идёт уже поперёк волокон: все его
+    куски — один и тот же срез рейки, смещение не меняется.
     """
     turned = [
-        Piece(rotate(piece.polygon, -angle_deg, origin=(0, 0)), piece.species)
+        Piece(
+            rotate(piece.polygon, -angle_deg, origin=(0, 0)),
+            piece.origin,
+            piece.orientation.turned(-angle_deg),
+        )
         for piece in part.pieces
     ]
     boxes = [piece.polygon.bounds for piece in turned]
@@ -89,8 +109,12 @@ def slice_part(part: Part, angle_deg: float, step_mm: float) -> tuple[list[Part]
         band = box(left, ymin - _BAND_MARGIN_MM, left + step_mm, ymax + _BAND_MARGIN_MM)
         pieces: list[Piece] = []
         for piece in turned:
+            start = piece.polygon.bounds[0]
             for polygon in _polygons(piece.polygon.intersection(band)):
-                pieces.append(Piece(polygon, piece.species))
+                origin = piece.origin
+                if along_strip:
+                    origin = origin.shifted(polygon.bounds[0] - start)
+                pieces.append(Piece(polygon, origin, piece.orientation))
         if pieces:
             result.append(normalized(Part(tuple(pieces), part.thickness_mm)))
 
@@ -108,6 +132,11 @@ def stand_on_end(part: Part, crosscut_step_mm: float) -> Part:
     занимает весь шаг по X — так выходит сразу после торцовки. Инвариант
     проверяется здесь же: если его снять, поворот перестанет быть масштабом,
     и молча поехали бы все размеры.
+
+    Разворот детали здесь обнуляется. До этой операции видна пласть, а не
+    торец: повороты полосы в той плоскости про рисунок годичных колец не
+    говорят ничего. Система координат торца заводится ровно тут, а копится
+    разворот уже от неё — на резах в плане и на склейке.
     """
     _require_full_width_cells(part, crosscut_step_mm)
 
@@ -115,7 +144,8 @@ def stand_on_end(part: Part, crosscut_step_mm: float) -> Part:
     turned = tuple(
         Piece(
             scale(piece.polygon, xfact=factor, yfact=1.0, origin=(0, 0)),
-            piece.species,
+            piece.origin,
+            Orientation(),
         )
         for piece in part.pieces
     )
@@ -158,11 +188,16 @@ def assemble(
     parts: list[Part],
     reversed_flags: tuple[bool, ...],
     offsets_mm: tuple[float, ...],
+    flipped_flags: tuple[bool, ...] | None = None,
 ) -> Part:
     """Склеить детали в новый щит: порядок по X, разворот, сдвиг по Y.
 
     Детали приходят уже выбранными: какие именно и из каких заготовок,
     решает исполнитель программы.
+
+    `flipped` (Р7) на узор не влияет — состав ряда от переворота не меняется, —
+    но меняет рисунок волокон, поэтому доходит до детали разворотом, а не
+    преобразованием полигона.
     """
     if not parts:
         raise ValueError("нечего склеивать")
@@ -183,15 +218,28 @@ def assemble(
                 tuple(
                     Piece(
                         rotate(piece.polygon, 180, origin=(xmax / 2, ymax / 2)),
-                        piece.species,
+                        piece.origin,
+                        piece.orientation.turned(180.0),
                     )
+                    for piece in source.pieces
+                ),
+                source.thickness_mm,
+            )
+        if flipped_flags is not None and flipped_flags[slot]:
+            source = Part(
+                tuple(
+                    Piece(piece.polygon, piece.origin, piece.orientation.flipped())
                     for piece in source.pieces
                 ),
                 source.thickness_mm,
             )
         offset = offsets_mm[slot]
         pieces.extend(
-            Piece(translate(piece.polygon, cursor, offset), piece.species)
+            Piece(
+                translate(piece.polygon, cursor, offset),
+                piece.origin,
+                piece.orientation,
+            )
             for piece in source.pieces
         )
         cursor += source.width_mm
@@ -209,7 +257,7 @@ def crop(part: Part, left: float, right: float, top: float, bottom: float) -> Pa
     pieces: list[Piece] = []
     for piece in part.pieces:
         for polygon in _polygons(piece.polygon.intersection(window)):
-            pieces.append(Piece(polygon, piece.species))
+            pieces.append(Piece(polygon, piece.origin, piece.orientation))
     if not pieces:
         raise ValueError("обрезка не оставляет от щита ничего")
     return normalized(Part(tuple(pieces), part.thickness_mm))

@@ -6,28 +6,88 @@
 # ТРЕБУЕТ СВЕРКИ по The Wood Database и Wood Handbook FPL: значения взяты
 # из docs/domain.md как стартовые.
 #
-# Цвет — приблизительный цвет ТОРЦЕВОГО среза под маслом, sRGB. Подобран
-# на глаз, измерений не было. ТРЕБУЕТ СВЕРКИ по фотографиям.
+# ПАЛИТРА ТОРЦА ТРЕБУЕТ СВЕРКИ ГЛАЗАМИ. Сверены пока только дуб и венге,
+# у остальных цвета подобраны на глаз, без измерений и фотографий.
+# Сверять так: `uv run boardforge swatches` рисует лист образцов, на нём видно,
+# что править. После правки поставьте породе `verified: true` — на листе
+# пропадёт пометка «не сверено».
+#
+# Правя файл вручную, не оставляйте ключ без значения: `fades:` без `true`
+# читается как пустое значение и молча гасит признак. Структуру файла проверяет
+# tests/core/test_species_yaml.py — прогоняйте тесты после ручных правок.
+#
+#   base              усреднённый тон торца под маслом, sRGB; им заливается
+#                     ячейка там, где текстуру не рисуют (мелкий масштаб,
+#                     плоский режим)
+#   earlywood         рыхлая ранняя древесина — фон внутри кольца
+#   latewood          плотная поздняя древесина — сама тёмная полоса кольца
+#   ray               сердцевинные лучи, поперёк колец
+#   ring_width_mm     период годичного кольца, мм
+#   latewood_fraction какую долю периода занимает тёмная зона, 0–1. Не то же,
+#                     что контраст: у венге прослойка узкая и очень тёмная,
+#                     у клёна широкая и почти неразличимая. Узкая зона рисуется
+#                     темнее широкой при том же ring_contrast — так она и
+#                     читается на настоящем торце
+#   ring_contrast     выраженность колец, 0–1: базовая непрозрачность штриха
+#                     поздней зоны до поправки на её ширину
+#   ray_width_mm      толщина сердцевинного луча, мм: у дуба лучи широкие,
+#                     у бука узкие, у клёна почти нитевидные
+#   ray_contrast      выраженность лучей, 0–1; 0 — лучей не видно вовсе
+#   verified          сверял ли человек эти цвета глазами; последняя строка
+#                     палитры
+#
+# Незаданные поля палитры выводятся из `base`, так что чужой справочник может
+# ограничиться одним цветом.
 
 maple_hard:
   name: Клён сахарный
   density: 705
   shrinkage: {tangential: 9.9, radial: 4.8}
-  color: "#e6d4ac"
-  note: эталон для разделочных досок
+  palette:
+    base: "#e6d4ac"
+    earlywood: "#ece0bf"
+    latewood: "#cdb489"
+    ray: "#f4ecd8"
+    ring_width_mm: 2.2
+    latewood_fraction: 0.55
+    ring_contrast: 0.34
+    ray_width_mm: 0.10
+    ray_contrast: 0.14
+    verified: false
+  note: эталон для разделочных досок; граница поздней зоны почти неразличима
 
 walnut_black:
   name: Орех американский
   density: 610
   shrinkage: {tangential: 7.8, radial: 5.5}
-  color: "#5a3f2d"
+  palette:
+    base: "#5a3f2d"
+    earlywood: "#634834"
+    latewood: "#3d291b"
+    ray: "#7a5f49"
+    ring_width_mm: 3.0
+    latewood_fraction: 0.40
+    ring_contrast: 0.42
+    ray_width_mm: 0.16
+    ray_contrast: 0.10
+    verified: false
   note: классика контраста
 
 cherry:
   name: Вишня
   density: 560
   shrinkage: {tangential: 7.1, radial: 3.7}
-  color: "#ac6a45"
+  palette:
+    base: "#ac6a45"
+    earlywood: "#b6764f"
+    latewood: "#8d5033"
+    ray: "#c2855f"
+    ring_width_mm: 2.6
+    latewood_fraction: 0.38
+    ring_contrast: 0.34
+    ray_width_mm: 0.14
+    ray_contrast: 0.16
+    verified: false
   fades: true
   note: темнеет от света
 
@@ -35,37 +95,87 @@ ash:
   name: Ясень
   density: 675
   shrinkage: {tangential: 7.8, radial: 4.9}
-  color: "#d9c39c"
+  palette:
+    base: "#d9c39c"
+    earlywood: "#e2d0af"
+    latewood: "#b09062"
+    ray: "#e8dcc2"
+    ring_width_mm: 3.4
+    latewood_fraction: 0.28
+    ring_contrast: 0.62
+    ray_width_mm: 0.15
+    ray_contrast: 0.0
+    verified: false
   open_pores: true
-  note: крупные поры
+  note: кольцесосудистая — кольца резкие, лучей на торце не видно
 
 oak:
   name: Дуб
   density: 700
   shrinkage: {tangential: 10.5, radial: 5.6}
-  color: "#c3a274"
+  palette:
+    base: "#c3a274"
+    earlywood: "#cfb287"
+    latewood: "#9c7850"
+    ray: "#ddc9a6"
+    ring_width_mm: 3.2
+    latewood_fraction: 0.35
+    ring_contrast: 0.60
+    ray_width_mm: 0.75
+    ray_contrast: 0.27
+    verified: true
   open_pores: true
-  note: открытые поры, для разделочной поверхности не рекомендуется
+  note: открытые поры и широкие лучи, для разделочной поверхности не рекомендуется
 
 beech:
   name: Бук
   density: 710
   shrinkage: {tangential: 11.9, radial: 5.5}
-  color: "#d5ab84"
-  note: сильно «играет» при смене влажности
+  palette:
+    base: "#d5ab84"
+    earlywood: "#dcb894"
+    latewood: "#bb8a63"
+    ray: "#eacfb4"
+    ring_width_mm: 2.0
+    latewood_fraction: 0.45
+    ring_contrast: 0.26
+    ray_width_mm: 0.20
+    ray_contrast: 0.22
+    verified: false
+  note: сильно «играет» при смене влажности; лучи узкие, но частые
 
 hornbeam:
   name: Граб
   density: 750
   shrinkage: {tangential: 11.5, radial: 6.8}
-  color: "#e3d9c2"
+  palette:
+    base: "#e3d9c2"
+    earlywood: "#e9e1ce"
+    latewood: "#c9bb9d"
+    ray: "#f0e9da"
+    ring_width_mm: 1.8
+    latewood_fraction: 0.45
+    ring_contrast: 0.22
+    ray_width_mm: 0.24
+    ray_contrast: 0.24
+    verified: false
   note: очень твёрдый
 
 padauk:
   name: Падук
   density: 745
   shrinkage: {tangential: 5.2, radial: 3.3}
-  color: "#bd4419"
+  palette:
+    base: "#bd4419"
+    earlywood: "#c94d20"
+    latewood: "#98330f"
+    ray: "#d4643a"
+    ring_width_mm: 4.0
+    latewood_fraction: 0.30
+    ring_contrast: 0.28
+    ray_width_mm: 0.14
+    ray_contrast: 0.07
+    verified: false
   fades: true
   note: со временем буреет
 
@@ -73,7 +183,17 @@ purpleheart:
   name: Амарант
   density: 880
   shrinkage: {tangential: 6.1, radial: 3.2}
-  color: "#5d3a6b"
+  palette:
+    base: "#5d3a6b"
+    earlywood: "#664175"
+    latewood: "#472a53"
+    ray: "#7a5289"
+    ring_width_mm: 3.6
+    latewood_fraction: 0.35
+    ring_contrast: 0.24
+    ray_width_mm: 0.14
+    ray_contrast: 0.07
+    verified: false
   allergen: true
   fades: true
   note: цвет нестабилен на свету
@@ -82,19 +202,50 @@ wenge:
   name: Венге
   density: 870
   shrinkage: {tangential: 8.1, radial: 4.8}
-  color: "#3b2f2a"
+  palette:
+    base: "#3b2f2a"
+    earlywood: "#4b3c34"
+    latewood: "#1c1512"
+    ray: "#57483f"
+    ring_width_mm: 3.8
+    latewood_fraction: 0.09
+    ring_contrast: 0.55
+    ray_width_mm: 0.18
+    ray_contrast: 0.09
+    verified: true
   allergen: true
-  note: занозы, пыль раздражает дыхательные пути
+  note: узкие очень тёмные прослойки на светлом фоне; занозы, пыль раздражает
 
 jatoba:
   name: Ятоба
   density: 910
   shrinkage: {tangential: 7.7, radial: 4.0}
-  color: "#8b4a2f"
+  palette:
+    base: "#8b4a2f"
+    earlywood: "#955338"
+    latewood: "#6d3822"
+    ray: "#a56446"
+    ring_width_mm: 2.8
+    latewood_fraction: 0.30
+    ring_contrast: 0.34
+    ray_width_mm: 0.15
+    ray_contrast: 0.09
+    verified: false
   note: тяжёлая
 
 sapele:
   name: Сапеле
   density: 640
   shrinkage: {tangential: 7.4, radial: 4.6}
-  color: "#8c4e33"
+  palette:
+    base: "#8c4e33"
+    earlywood: "#96573b"
+    latewood: "#713c26"
+    ray: "#a56850"
+    ring_width_mm: 2.4
+    latewood_fraction: 0.33
+    ring_contrast: 0.30
+    ray_width_mm: 0.16
+    ray_contrast: 0.12
+
+    verified: false

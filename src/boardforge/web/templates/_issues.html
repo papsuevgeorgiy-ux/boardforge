@@ -1,0 +1,22 @@
+{#
+  Разбор валидатора. Это главная функция инструмента, поэтому он стоит первым
+  в правой колонке и виден всегда, а не по кнопке «подробности».
+#}
+<section id="issues" class="panel issues"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>Изготовимость</h2>
+  <p class="issues__verdict
+      {% if issues|selectattr('level', 'equalto', 'error')|list %}issues__verdict--error
+      {% elif issues %}issues__verdict--warning{% else %}issues__verdict--ok{% endif %}">
+    {{ verdict }}</p>
+  {% if issues %}
+    <ul class="issues__list">
+      {% for issue in issues %}
+        <li class="issue issue--{{ issue.level }}">
+          <span class="issue__where">{{ issue.where }}</span>
+          <span class="issue__level">{{ issue.level_label }}</span>
+          <p class="issue__message">{{ issue.message }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

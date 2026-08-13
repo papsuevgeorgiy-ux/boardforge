@@ -1,5 +1,6 @@
 """Единицы измерения. Внутри ядра — миллиметры, дюймы только на границе."""
 
+from dataclasses import dataclass
 from math import gcd
 
 MM_PER_INCH = 25.4
@@ -40,3 +41,36 @@ def format_inches(mm: float, denominator: int = 16) -> str:
     if whole == 0:
         return f'{sign}{numerator}/{denominator}"'
     return f'{sign}{whole}-{numerator}/{denominator}"'
+
+
+@dataclass(frozen=True, slots=True)
+class Units:
+    """Выбранные единицы показа. Только форматирование — ввод всегда в мм.
+
+    Пара «ключ и форматтер», а не поле в модели: единицы это способ прочитать
+    размер, а не свойство доски. Программа их не хранит и знать о них не должна.
+    """
+
+    key: str
+    label: str
+
+    def format(self, mm: float) -> str:
+        """Длина для показа человеку в выбранных единицах."""
+        return format_inches(mm) if self.key == "inch" else format_mm(mm)
+
+    def format_signed(self, mm: float) -> str:
+        """То же со знаком — для отклонения от желаемого размера."""
+        if abs(mm) < 0.05:
+            return "точно"
+        return f"{'+' if mm > 0 else '-'}{self.format(abs(mm))}"
+
+
+MILLIMETRES = Units("mm", "мм")
+INCHES = Units("inch", "дюймы")
+
+UNITS = {item.key: item for item in (MILLIMETRES, INCHES)}
+
+
+def units_by_key(key: str) -> Units:
+    """Единицы по ключу; неизвестный ключ — миллиметры, без сюрпризов в UI."""
+    return UNITS.get(key, MILLIMETRES)
