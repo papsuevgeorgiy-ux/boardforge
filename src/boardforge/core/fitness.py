@@ -236,14 +236,11 @@ def economy(program: Program) -> float:
     from ..calc.material import material_report
 
     try:
-        report = material_report(program)
+        return material_report(program).economy
     except (ValueError, KeyError):
         # Расход не определён — например, щит ни разу не торцован. Это не ноль
         # экономичности, а отсутствие оценки; хуже всего измеримого варианта.
         return 0.0
-    if report.raw_volume_mm3 <= 0:
-        return 0.0
-    return max(0.0, min(1.0, report.board_volume_mm3 / report.raw_volume_mm3))
 
 
 def _complaint(message: str) -> str:

@@ -27,6 +27,22 @@ class Stroke:
 
 
 @dataclass(frozen=True, slots=True)
+class Label:
+    """Буква породы в ячейке. Есть только у чертежа, у экранных режимов её нет."""
+
+    color: str
+    height_mm: float
+    min_cell_mm: float
+    """Ячейка мельче — не подписывается: буква вылезет за её края и соврёт."""
+
+    def __post_init__(self) -> None:
+        if self.height_mm <= 0:
+            raise ValueError("высота буквы должна быть положительной")
+        if self.min_cell_mm <= 0:
+            raise ValueError("порог подписи должен быть положительным")
+
+
+@dataclass(frozen=True, slots=True)
 class RenderStyle:
     """Как выглядит рендер: чем красим ячейки, чем обводим швы и кромку."""
 
@@ -38,6 +54,8 @@ class RenderStyle:
     background: str | None = None
     repaint: Callable[[Palette], Palette] | None = None
     """Преобразование палитры породы. `None` — брать как есть."""
+    label: Label | None = None
+    """Подписывать ли ячейки буквой породы. `None` — не подписывать."""
 
     def palette(self, palette: Palette) -> Palette:
         """Палитра породы в этом стиле."""
@@ -73,7 +91,41 @@ FLAT = RenderStyle(
 )
 """Плоская заливка: только основной тон и швы. Быстро и легко по весу."""
 
-STYLES: dict[str, RenderStyle] = {style.name: style for style in (PREVIEW, FLAT)}
+
+def _blueprint(palette: Palette) -> Palette:
+    """Убрать цвет совсем: на офисном лазернике его всё равно нет.
+
+    Не оттенки серого. Серая заливка на лазерной печати превращается в растр,
+    растр съедает буквы поверх него, а породы всё равно не различает: клён
+    и ясень сядут в одну и ту же клетку. Породу называет буква, а заливка
+    остаётся белой — так у чертежа и остаётся только то, что несёт смысл.
+    """
+    return replace(
+        palette,
+        base="#ffffff",
+        earlywood="#ffffff",
+        latewood="#ffffff",
+        ray="#ffffff",
+        ring_contrast=0.0,
+        ray_contrast=0.0,
+    )
+
+
+BLUEPRINT = RenderStyle(
+    name="blueprint",
+    seam=Stroke("#000000", 0.4),
+    edge=Stroke("#000000", 1.2),
+    texture=False,
+    background="#ffffff",
+    repaint=_blueprint,
+    label=Label(color="#000000", height_mm=9.0, min_cell_mm=11.0),
+)
+"""Цеховой чертёж под чёрно-белую печать: белая заливка, чёрные линии,
+породы названы буквами. Смотреть на него не надо — по нему пилят."""
+
+STYLES: dict[str, RenderStyle] = {
+    style.name: style for style in (PREVIEW, FLAT, BLUEPRINT)
+}
 
 
 def style_by_name(name: str) -> RenderStyle:

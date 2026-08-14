@@ -28,14 +28,24 @@ def test_every_species_gets_a_swatch(sheet: str) -> None:
 def test_unverified_palettes_are_marked(sheet: str) -> None:
     """Помечена каждая несверенная палитра и только она.
 
-    Раньше здесь ждали пометку у всех двенадцати пород — верно, пока не сверена
-    была ни одна. Сверка дуба и венге это ожидание отменила, поэтому число
-    берётся из справочника, а не из его размера.
+    Число берётся из справочника, а не из его размера: сверка шла в три захода
+    (ни одной, потом дуб и венге, теперь все двенадцать), и тест переживал
+    каждый, не меняя смысла. Сейчас ожидаемое число — ноль.
     """
     catalogue = load_species()
     unverified = [key for key, item in catalogue.items() if not item.palette.verified]
-    assert len(unverified) == 10
     assert _TEXT.findall(sheet).count("палитра не сверена") == len(unverified)
+
+
+def test_unverified_palette_keeps_the_mark() -> None:
+    """Пометка на месте, когда есть что помечать.
+
+    Пока сверены все двенадцать, `test_unverified_palettes_are_marked` считает
+    ноль против нуля и сам по себе прошёл бы и на сломанном рисовальщике.
+    Этот тест держит вторую сторону: палитра без галочки помечается.
+    """
+    species = Species("x", "Тест", 700.0, 8.0, 4.0, Palette.from_base("#c08040"))
+    assert "палитра не сверена" in render_swatches({"x": species})
 
 
 def test_verified_palette_loses_the_mark() -> None:

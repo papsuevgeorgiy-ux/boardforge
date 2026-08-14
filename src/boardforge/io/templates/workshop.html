@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>BoardForge — в мастерскую</title>
+<style>
+  /* Стили под лазерную печать: без фонов, без цвета, поля страницы задаёт @page. */
+  @page { size: A4 portrait; margin: 14mm; }
+  body { font: 10pt/1.4 "DejaVu Sans", "Segoe UI", sans-serif; color: #000; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2mm; }
+  h2 { font-size: 12pt; margin: 6mm 0 2mm; border-bottom: 1px solid #000; padding-bottom: 1mm; }
+  p { margin: 0 0 2mm; }
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+  th, td { border: 1px solid #999; padding: 1mm 1.5mm; text-align: left; vertical-align: top; }
+  th { font-weight: bold; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  .drawing { page-break-inside: avoid; margin: 3mm 0; }
+  .drawing svg { max-width: 100%; height: auto; }
+  .lead { font-size: 9pt; }
+  .warn { border: 1px solid #000; padding: 2mm; margin: 0 0 2mm; page-break-inside: avoid; }
+  .sheet { page-break-before: always; }
+  ul { margin: 0 0 2mm; padding-left: 5mm; }
+</style>
+</head>
+<body>
+
+<h1>Торцевая разделочная доска</h1>
+<p class="lead">
+  Габарит {{ board.width_mm|mm }} × {{ board.length_mm|mm }} × {{ board.thickness_mm|mm }},
+  ячеек {{ board.pieces|length }}, вес {{ '%.1f'|format(shop.bill.weight_kg) }} кг.
+  Все размеры чистовые: пропил, строгание и обрезка уже учтены в закупке.
+</p>
+
+<div class="drawing">{{ drawing|safe }}</div>
+
+<h2>Обозначения пород</h2>
+<table>
+  <tr><th>Буква</th><th>Порода</th><th class="n">Плотность</th><th class="n">Усушка танг./рад.</th></tr>
+  {% for letter, name in letters %}
+  <tr>
+    <td>{{ letter }}</td>
+    <td>{{ name }}</td>
+    {% for key, item in shop.catalogue.items() if item.name == name %}
+    <td class="n">{{ '%.0f'|format(item.density_kg_m3) }} кг/м³</td>
+    <td class="n">{{ '%.1f'|format(item.shrinkage_tangential) }}% / {{ '%.1f'|format(item.shrinkage_radial) }}%</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+
+{% if shop.issues %}
+<h2>Прежде чем пилить</h2>
+{% for issue in shop.issues %}
+<p class="warn">{{ issue.message }}</p>
+{% endfor %}
+{% endif %}
+
+<div class="sheet">
+<h1>Закупка</h1>
+
+<h2>Что купить</h2>
+<table>
+  <tr><th>Порода</th><th class="n">Толщина</th><th class="n">Длина доски</th><th class="n">Штук</th></tr>
+  {% for species, thickness, length, count in shop.nesting.shopping_list %}
+  <tr>
+    <td>{{ shop.catalogue[species].name if species in shop.catalogue else species }}</td>
+    <td class="n">{{ thickness|mm }}</td>
+    <td class="n">{{ (length / 1000)|round(1) }} м</td>
+    <td class="n">{{ count }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="lead">
+  Метраж {{ '%.1f'|format(shop.nesting.total_length_mm / 1000) }} м,
+  в обрезки уйдёт {{ shop.nesting.offcut_share|percent }} длины.
+  Раскрой по длине подобран первым подходящим по убыванию с перестановками:
+  перебрано {{ shop.nesting.tries }} порядков, выигрышных
+  {{ shop.nesting.improvements }}.
+  Ширину рейки получают роспуском доски вдоль — она в раскрой по длине не входит.
+</p>
+
+<h2>Куда уходит дерево</h2>
+<table>
+  <tr><th>Статья</th><th class="n">Объём</th><th class="n">Доля закупки</th></tr>
+  {% for name, volume, share in shop.losses %}
+  <tr><td>{{ name }}</td><td class="n">{{ '%.2f'|format(volume) }} дм³</td><td class="n">{{ share|percent }}</td></tr>
+  {% endfor %}
+  <tr>
+    <td><strong>Доска</strong></td>
+    <td class="n"><strong>{{ '%.2f'|format(shop.board_dm3) }} дм³</strong></td>
+    <td class="n"><strong>{{ shop.material.economy|percent }}</strong></td>
+  </tr>
+  <tr>
+    <td>Куплено всего</td>
+    <td class="n">{{ '%.2f'|format(shop.raw_dm3) }} дм³</td>
+    <td class="n">100.0%</td>
+  </tr>
+</table>
+<p class="lead">
+  Доля доски в закупке — та же экономичность, что показывает оценка узора.
+  {% if shop.bill.boards > 1 %}
+  Из этой закупки выйдет досок: {{ shop.bill.boards }} — остаток последнего реза
+  образует полный комплект полос, и в отход он не идёт.
+  {% endif %}
+</p>
+
+<h2>Себестоимость</h2>
+<table>
+  <tr><th>Позиция</th><th class="n">Объём</th><th class="n">Цена</th><th class="n">Стоимость</th></tr>
+  {% for item in shop.bill.species %}
+  <tr>
+    <td>{{ item.name }}</td>
+    <td class="n">{{ '%.2f'|format(item.volume_m3 * 1000) }} дм³</td>
+    <td class="n">{{ item.price_per_m3|money }} {{ shop.bill.prices.currency }}/м³</td>
+    <td class="n">{{ item.cost|money }} {{ shop.bill.prices.currency }}</td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td>Клей</td><td class="n">{{ '%.2f'|format(shop.bill.glue_kg) }} кг</td>
+    <td class="n">{{ shop.bill.prices.glue_per_kg|money }} {{ shop.bill.prices.currency }}/кг</td>
+    <td class="n">{{ shop.bill.glue_cost|money }} {{ shop.bill.prices.currency }}</td>
+  </tr>
+  <tr>
+    <td>Масло</td><td class="n">{{ '%.3f'|format(shop.bill.oil_l) }} л</td>
+    <td class="n">{{ shop.bill.prices.oil_per_l|money }} {{ shop.bill.prices.currency }}/л</td>
+    <td class="n">{{ shop.bill.oil_cost|money }} {{ shop.bill.prices.currency }}</td>
+  </tr>
+  <tr>
+    <td colspan="3"><strong>Итого{% if shop.bill.boards > 1 %} за {{ shop.bill.boards }} доски{% endif %}</strong></td>
+    <td class="n"><strong>{{ shop.bill.total|money }} {{ shop.bill.prices.currency }}</strong></td>
+  </tr>
+  {% if shop.bill.boards > 1 %}
+  <tr>
+    <td colspan="3"><strong>За одну доску</strong></td>
+    <td class="n"><strong>{{ shop.bill.per_board|money }} {{ shop.bill.prices.currency }}</strong></td>
+  </tr>
+  {% endif %}
+</table>
+</div>
+
+<div class="sheet">
+<h1>Раскрой</h1>
+
+<h2>Рейки щитов</h2>
+<table>
+  <tr><th>№</th><th>Щит</th><th>Порода</th><th class="n">Длина × ширина × толщина, сырьё</th></tr>
+  {% for item in shop.listing.stock %}
+  <tr>
+    <td>{{ item.number }}</td>
+    <td>{{ item.billet }}</td>
+    <td>{{ shop.catalogue[item.species].name if item.species in shop.catalogue else item.species }}</td>
+    <td class="n">{{ item.size }} мм</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% for stage in shop.listing.stages %}
+<h2>Рез {{ stage.op_index + 1 }}: заготовка {{ stage.billet }},
+  шаг {{ stage.step_mm|mm }}{% if stage.angle_deg != 90.0 %}, угол {{ '%.0f'|format(stage.angle_deg) }}°{% endif %}</h2>
+<table>
+  <tr>
+    <th>№ полосы</th><th class="n">Длина × ширина × высота</th>
+    <th>Куда ставить</th><th>Что сделать</th>
+  </tr>
+  {% for part in stage.parts %}
+  <tr>
+    <td>{{ part.number }}</td>
+    <td class="n">{{ part.size }} мм</td>
+    {% if part.placement %}
+    <td>щит {{ part.placement.assembly }}, место {{ part.placement.position }}</td>
+    <td>{{ part.placement.note or "как есть" }}</td>
+    {% elif part.reusable %}
+    <td>в запас</td><td>годная полоса, отложить на следующую доску</td>
+    {% else %}
+    <td>—</td><td>отход</td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+</div>
+
+</body>
+</html>

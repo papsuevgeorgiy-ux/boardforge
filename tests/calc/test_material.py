@@ -116,6 +116,69 @@ def test_two_panels_are_costed_separately(two_panels: Program) -> None:
     )
 
 
+def test_twin_panels_get_the_same_allowances() -> None:
+    """Щиты-близнецы кубов считаются одинаково.
+
+    До Дня 5 припуск на строгание брался по **всем** склейкам программы после
+    торцовки. У кубов операции двух щитов идут подряд, поэтому первому щиту
+    доставались ещё и склейки второго: одинаковые по построению щиты выходили
+    разной толщины и разной длины. Признак был виден прямо в отчёте, и он же
+    служит проверкой: близнецы обязаны совпасть до миллиметра.
+    """
+    from boardforge.core.library import build
+
+    report = material_report(build("cubes").program, ALLOWANCES)
+    first, second = report.panels
+    assert first.crosscut_step_real_mm == pytest.approx(second.crosscut_step_real_mm)
+    assert first.raw_length_mm == pytest.approx(second.raw_length_mm)
+    assert first.raw_thickness_mm == pytest.approx(second.raw_thickness_mm)
+
+
+def test_planing_is_measured_on_the_panel_that_was_glued() -> None:
+    """Строгание считается по площади промежуточного щита, а не готовой доски.
+
+    У шеврона щит после первой склейки заметно больше доски: её из него ещё
+    только предстоит вырезать. Считать строгание по доске — занизить его
+    именно там, где узор дорог.
+    """
+    from boardforge.core.library import build
+
+    program = build("chevron").program
+    report = material_report(program, ALLOWANCES)
+    board = program.run().board
+
+    assemblies = sum(1 for op in program.operations if type(op).__name__ == "Assemble")
+    by_board = assemblies * board.area_mm2 * PLANING
+    assert report.losses.planing_mm3 > by_board
+
+
+def test_economy_is_the_one_the_score_shows() -> None:
+    """Экономичность в смете и в оценке узора — одно и то же число.
+
+    Не совпадение формул, а одна функция: мера узора берёт её из отчёта.
+    Разойдись они — генератор оптимизировал бы не то, за что платят.
+    """
+    from boardforge.core.fitness import economy
+    from boardforge.core.library import build
+
+    program = build("chevron").program
+    assert material_report(program).economy == pytest.approx(economy(program))
+
+
+def test_angled_pattern_wastes_about_half_the_panel() -> None:
+    """Угловой узор уводит в обрезь около половины закупки — вывод Дня 3.
+
+    Цифра должна быть видна **до** похода в магазин, поэтому она и проверяется:
+    молчаливое улучшение расчёта, из-за которого доля упадёт вдвое, — скорее
+    всего потерянная статья, а не найденная экономия.
+    """
+    from boardforge.core.library import build
+
+    report = material_report(build("herringbone").program, ALLOWANCES)
+    share = report.losses.offcut_mm3 / report.raw_volume_mm3
+    assert 0.35 < share < 0.7
+
+
 def test_uncut_panel_is_reported() -> None:
     """Щит, который ни разу не торцевали, — дыра в расчёте, а не молчаливый ноль."""
     from boardforge.core.ops import Assemble, Crosscut, Glue, PieceRef, Strip

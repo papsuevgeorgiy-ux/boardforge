@@ -10,7 +10,7 @@ from boardforge.core.species import load_species
 
 
 def test_swatches_writes_a_sheet(tmp_path, capsys) -> None:
-    """`swatches` создаёт лист и называет несверенные породы."""
+    """`swatches` создаёт лист и докладывает, что сверять больше нечего."""
     target = tmp_path / "deep" / "swatches.svg"
     assert main(["swatches", "-o", str(target)]) == 0
 
@@ -18,7 +18,30 @@ def test_swatches_writes_a_sheet(tmp_path, capsys) -> None:
     assert sheet.startswith("<?xml")
     for species in load_species().values():
         assert species.name in sheet
-    assert "не сверено" in capsys.readouterr().out
+    assert "сверены все" in capsys.readouterr().out
+
+
+def test_swatches_names_the_unverified(tmp_path, capsys) -> None:
+    """Несверенную породу команда называет по ключу, а не молчит.
+
+    Штатный справочник сверен целиком, поэтому эту ветку показывает только
+    чужой каталог — иначе она осталась бы без теста ровно с того дня, как
+    пропала последняя галочка.
+    """
+    catalogue = tmp_path / "my.yaml"
+    catalogue.write_text(
+        "birch:\n"
+        "  name: Берёза\n"
+        "  density: 640\n"
+        "  shrinkage: {tangential: 9.0, radial: 5.3}\n"
+        '  color: "#e0d2b4"\n',
+        encoding="utf-8",
+    )
+    assert (
+        main(["swatches", "--species", str(catalogue), "-o", str(tmp_path / "b.svg")])
+        == 0
+    )
+    assert "не сверено: birch" in capsys.readouterr().out
 
 
 def test_swatches_takes_a_custom_catalogue(tmp_path) -> None:

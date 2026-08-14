@@ -1,0 +1,26 @@
+<div id="workshop" class="panel"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>Цех</h2>
+  {% if shop %}
+    <p class="panel__hint">Всё посчитано по этой самой программе: карта раскроя,
+      разбивка потерь и смета — производные, как и узор.</p>
+    <dl class="shop">
+      <dt>Закупка</dt><dd>{{ '%.2f'|format(shop.raw_dm3) }} дм³</dd>
+      <dt>В доску идёт</dt><dd>{{ '%.0f'|format(shop.material.economy * 100) }}%</dd>
+      <dt>Купить</dt><dd>досок: {{ shop.nesting.boards|length }},
+        {{ '%.1f'|format(shop.nesting.total_length_mm / 1000) }} м</dd>
+      <dt>Деталей</dt><dd>{{ shop.listing.used|length }} в дело,
+        {{ shop.listing.spare|length }} в остаток</dd>
+      <dt>Вес доски</dt><dd>{{ '%.1f'|format(shop.bill.weight_kg) }} кг</dd>
+      <dt>Себестоимость</dt>
+      <dd>{{ '%.0f'|format(shop.bill.per_board) }} ₽{% if shop.bill.boards > 1 %}
+        за доску, всего {{ '%.0f'|format(shop.bill.total) }} ₽ за
+        {{ shop.bill.boards }}{% endif %}</dd>
+    </dl>
+    <div class="panel__actions">
+      <a class="button" href="/workshop" target="_blank">Распечатка</a>
+      <a class="button" href="/blueprint.svg" target="_blank">Чертёж</a>
+    </div>
+  {% else %}
+    <p class="panel__hint">Расчёта нет: программа не исполняется.</p>
+  {% endif %}
+</div>

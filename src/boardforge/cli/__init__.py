@@ -34,6 +34,10 @@ def _swatches(args: argparse.Namespace) -> int:
     if unverified:
         print(f"не сверено: {', '.join(unverified)}")
         print(f"правьте палитры в {args.species} и ставьте verified: true")
+    else:
+        # Пустая строка вместо списка читалась бы как «команда не досчитала»:
+        # сверено или нечего сверять — разные вещи, и обе надо назвать вслух.
+        print("сверены все")
     return 0
 
 
@@ -130,6 +134,39 @@ def _image(args: argparse.Namespace) -> int:
         used = ", ".join(sorted({catalogue[key].name for key in strips}))
         print(f"  щит {chr(ord('A') + index)}: {used}")
     print(f"сохранено: {args.output}")
+    return 0
+
+
+def _workshop(args: argparse.Namespace) -> int:
+    from ..core.program import Program
+    from ..core.units import units_by_key
+    from ..io.report import collect, write_workshop
+
+    catalogue = load_species(args.species)
+    if args.project is not None:
+        program = Program.from_dict(
+            json.loads(Path(args.project).read_text(encoding="utf-8"))
+        )
+    else:
+        from ..core.library import build
+
+        program = build(args.template).program
+
+    shop = collect(program, catalogue, units=units_by_key(args.units))
+    page = write_workshop(shop, args.output, RenderOptions(scale=args.scale))
+    board = program.run().board
+    print(
+        f"доска {board.width_mm:.0f} × {board.length_mm:.0f} × "
+        f"{board.thickness_mm:.0f} мм, вес {shop.bill.weight_kg:.1f} кг"
+    )
+    print(
+        f"закупка {shop.raw_dm3:.2f} дм³, в доску идёт "
+        f"{shop.material.economy:.0%}; досок из закупки: {shop.bill.boards}"
+    )
+    print(f"себестоимость {shop.bill.per_board:,.0f} ₽ за доску".replace(",", " "))
+    for issue in shop.issues:
+        print(f"  ! {issue.message.split('.')[0]}")
+    print(f"распечатка: {page}")
     return 0
 
 
@@ -311,6 +348,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     image.add_argument("--scale", type=float, default=2.0, help="пикселей на миллиметр")
     image.set_defaults(handler=_image)
+
+    workshop = commands.add_parser(
+        "workshop",
+        help="распечатка в мастерскую: чертёж, раскрой, закупка, смета",
+        description=(
+            "Собирает всё, с чем идут пилить: ч/б-чертёж с буквами пород, карту "
+            "раскроя с номерами деталей, разбивку потерь, список в магазин и "
+            "себестоимость. Страница печатается из браузера и на Дне 6 станет PDF."
+        ),
+    )
+    workshop.add_argument(
+        "--project", type=Path, default=None, help="проект из JSON вместо шаблона"
+    )
+    workshop.add_argument(
+        "--template", default="checkerboard", help="узор библиотеки, если нет проекта"
+    )
+    workshop.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=OUT_DIR / "workshop",
+        help=f"каталог распечатки (по умолчанию {OUT_DIR / 'workshop'})",
+    )
+    workshop.add_argument(
+        "--species", type=Path, default=DEFAULT_SPECIES_PATH, help="свой справочник пород"
+    )
+    workshop.add_argument("--units", default="mm", help="единицы показа: mm или inch")
+    workshop.add_argument(
+        "--scale", type=float, default=2.0, help="пикселей на миллиметр"
+    )
+    workshop.set_defaults(handler=_workshop)
 
     serve = commands.add_parser(
         "serve",

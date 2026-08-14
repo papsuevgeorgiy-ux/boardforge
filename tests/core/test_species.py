@@ -115,14 +115,16 @@ def test_bad_ray_width_rejected() -> None:
 
 
 def test_palette_needs_checking(catalogue: dict[str, Species]) -> None:
-    """Сверены ровно дуб и венге, у остальных цвета всё ещё подобраны на глаз.
+    """Сверены все двенадцать пород — ожидание доведено до конца.
 
-    Раньше здесь стояло «ни одна порода не сверена» — верно на тот день, когда
-    сверять ещё не начали. Теперь ожидание точное с обеих сторон: тест ловит
-    и потерянную галочку, и проставленную по недосмотру.
+    Ожидание здесь менялось трижды вместе со сверкой: «ни одна», «дуб и венге»,
+    теперь «все». Двусторонним оно быть перестало — обратную сторону, что
+    несверенная палитра не притворяется сверенной, держит
+    `test_palette_from_single_color` ниже: выведенная из одного тона палитра
+    приходит с `verified: False`.
     """
-    verified = {key for key, item in catalogue.items() if item.palette.verified}
-    assert verified == {"oak", "wenge"}
+    unverified = {key for key, item in catalogue.items() if not item.palette.verified}
+    assert not unverified
 
 
 def test_palette_from_single_color() -> None:

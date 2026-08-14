@@ -23,8 +23,29 @@ PALETTE_FIELDS = (*COLOR_FIELDS, *SIZE_FIELDS, *FRACTION_FIELDS, "verified")
 REQUIRED_TOP = ("name", "density", "shrinkage", "palette")
 OPTIONAL_TOP = ("open_pores", "allergen", "fades", "note")
 
-VERIFIED_SPECIES = {"oak", "wenge"}
-"""Породы, чью палитру человек сверил глазами. Список ведётся вручную."""
+REFERENCE_DATA = {
+    # порода: (плотность кг/м³, усушка тангенциальная %, радиальная %)
+    # Сверено вручную по Wood Handbook FPL-GTR-282 (гл. 4, табл. 4-3 и 4-4)
+    # и The Wood Database; источники и оговорки по видам — в шапке species.yaml.
+    "maple_hard": (705, 9.9, 4.8),
+    "walnut_black": (610, 7.8, 5.5),
+    "cherry": (560, 7.1, 3.7),
+    "ash": (675, 7.8, 4.9),
+    "oak": (755, 10.5, 5.6),
+    "beech": (710, 11.7, 5.8),
+    "hornbeam": (735, 11.5, 6.8),
+    "padauk": (745, 5.0, 3.1),
+    "purpleheart": (905, 6.1, 3.2),
+    "wenge": (870, 8.3, 4.8),
+    "jatoba": (910, 8.5, 4.5),
+    "sapele": (665, 7.4, 4.6),
+}
+"""Сверенные числа справочника — здесь они зафиксированы, а не выведены.
+
+С Дня 5 на этих числах держатся смета, вес доски и порог по короблению, то есть
+опечатка в одной цифре теперь врёт в рублях и в предупреждении. Список ведётся
+вручную и меняется только вместе со сверкой по справочнику.
+"""
 
 
 @pytest.fixture(scope="module")
@@ -146,13 +167,41 @@ def test_optional_flags_are_boolean(blocks: dict) -> None:
 
 
 def test_verified_species_match_the_list(blocks: dict) -> None:
-    """Сверены ровно те породы, что в списке.
+    """Сверены все породы файла — ни одна галочка не потеряна при правке."""
+    unverified = {
+        key for key, block in blocks.items() if not block["palette"]["verified"]
+    }
+    assert not unverified
 
-    Проверка двусторонняя: ловит и потерянную вручную галочку, и случайно
-    проставленную. Меняется вместе со списком, когда сверена очередная порода.
+
+def test_reference_numbers_are_the_checked_ones(blocks: dict) -> None:
+    """Плотность и усушка совпадают со сверенной таблицей — все двенадцать пород.
+
+    Проверка двусторонняя по составу: порода без строки в `REFERENCE_DATA`
+    так же не пройдёт, как и число, разошедшееся со справочником.
     """
-    verified = {key for key, block in blocks.items() if block["palette"]["verified"]}
-    assert verified == VERIFIED_SPECIES
+    assert set(blocks) == set(REFERENCE_DATA)
+    for key, (density, tangential, radial) in REFERENCE_DATA.items():
+        block = blocks[key]
+        assert block["density"] == pytest.approx(density), f"{key}: плотность"
+        assert block["shrinkage"]["tangential"] == pytest.approx(tangential), (
+            f"{key}: тангенциальная усушка"
+        )
+        assert block["shrinkage"]["radial"] == pytest.approx(radial), (
+            f"{key}: радиальная усушка"
+        )
+
+
+def test_tangential_exceeds_radial(blocks: dict) -> None:
+    """Поперёк волокна дерево всегда усыхает сильнее, чем по радиусу.
+
+    Не украшение таблицы, а свойство древесины: обратное соотношение означает
+    перепутанные местами столбцы, и его нельзя оставлять на глазок — на разнице
+    этих двух чисел стоит предупреждение о короблении.
+    """
+    for key, block in blocks.items():
+        shrinkage = block["shrinkage"]
+        assert shrinkage["tangential"] > shrinkage["radial"], key
 
 
 def test_file_matches_the_loaded_catalogue() -> None:
@@ -160,5 +209,5 @@ def test_file_matches_the_loaded_catalogue() -> None:
     catalogue = load_species()
     assert len(catalogue) == 12
     unverified = [key for key, item in catalogue.items() if not item.palette.verified]
-    assert len(unverified) == 12 - len(VERIFIED_SPECIES)
+    assert not unverified
     assert catalogue["padauk"].fades

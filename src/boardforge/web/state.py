@@ -7,13 +7,21 @@
 """
 
 import json
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..core.fitness import Scores, score
+from ..core.generate import Genome, generate
+from ..core.library import LIBRARY
 from ..core.ops import Glue, Strip
 from ..core.program import Program
 from ..core.species import Species, load_species
 from ..core.units import Units, units_by_key
+
+MAX_SEED = 1_000_000
+"""Верх диапазона случайного сида. Шестизначный сид человек перепишет с экрана
+и продиктует по телефону — а в этом весь смысл: узор восстанавливается из сида."""
 
 
 class EditError(ValueError):
@@ -30,6 +38,56 @@ class Editor:
     scale: float = 1.6
     note: str = ""
     path: Path | None = None
+    seed: int | None = None
+    scored: tuple[Program, Genome, Scores] | None = None
+    """Чем и с каким результатом сгенерирован узор — вместе с программой, для
+    которой это посчитано. Программа хранится здесь не от жадности: её правят
+    руками сразу же, а оценки после правки — уже не про эту доску."""
+
+    shop: tuple[Program, object] | None = None
+    """Расчёт цеха и программа, для которой он посчитан. Кэш обязателен: раскрой
+    углового узора считается сотни миллисекунд, а панель перерисовывается на
+    каждую правку."""
+
+    @property
+    def workshop(self) -> object | None:
+        """Расчёт цеха для того, что сейчас на экране; `None`, если доски нет."""
+        if self.shop is not None and self.shop[0] == self.program:
+            return self.shop[1]
+        board, _ = self.build_board()
+        if board is None:
+            return None
+        from ..io.report import collect
+
+        computed = collect(self.program, self.catalogue, units=self.units)
+        self.shop = (self.program, computed)
+        return computed
+
+    @property
+    def generated(self) -> tuple[Genome, Scores] | None:
+        """Геном и оценки, пока они относятся к тому, что на экране.
+
+        Сравнение с текущей программой, а не флаг «сгенерировано»: флаг надо
+        гасить в каждой правке и однажды забудешь, а сравнение гаснет само.
+        """
+        if self.scored is None or self.scored[0] != self.program:
+            return None
+        return self.scored[1], self.scored[2]
+
+    def surprise(self, seed: int | None = None, template: str | None = None) -> int:
+        """Сгенерировать узор; вернуть сид, по которому он воспроизводится."""
+        if template is not None and template not in LIBRARY:
+            raise EditError(f"нет такого узора: {template}")
+        if seed is None:
+            seed = random.randrange(MAX_SEED)
+        try:
+            genome, program = generate(seed, self.catalogue, template)
+        except ValueError as error:
+            raise EditError(str(error)) from error
+        self.program = program
+        self.scored = (program, genome, score(program, self.catalogue))
+        self.seed = seed
+        return seed
 
     @property
     def glue(self) -> Glue:

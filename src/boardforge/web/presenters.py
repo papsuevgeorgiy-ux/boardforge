@@ -158,7 +158,7 @@ def issue_views(program: Program, failure: str = "") -> list[IssueView]:
                 where="При сборке доски",
             )
         )
-    for issue in program.validate() + _safety_issues(program):
+    for issue in program.validate() + _safety_issues(program) + _wood_issues(program):
         if issue.index is None:
             where = "Программа целиком"
         else:
@@ -191,6 +191,18 @@ def _safety_issues(program: Program) -> list[Issue]:
         return []
 
 
+def _wood_issues(program: Program) -> list[Issue]:
+    """Замечания о самих породах: коробление, поры, аллергены, выцветание.
+
+    Не изготовимость: такая доска собирается, вопрос в том, как она проживёт
+    следующие годы. Валидатору о породах знать неоткуда — он читает операции,
+    а свойство приезжает из справочника.
+    """
+    from ..calc.warnings import species_issues
+
+    return species_issues(program)
+
+
 def verdict(issues: list[IssueView]) -> str:
     """Одна строка сверху: можно ли идти в мастерскую."""
     errors = sum(1 for issue in issues if issue.level == "error")
@@ -205,3 +217,39 @@ def verdict(issues: list[IssueView]) -> str:
 def issue_of(program: Program) -> list[Issue]:
     """Сырой разбор — для тех, кому нужны уровни, а не текст."""
     return program.validate()
+
+
+@dataclass(frozen=True, slots=True)
+class ScoreView:
+    """Одна мера узора: как зовётся, чему равна и во сколько процентов длины."""
+
+    name: str
+    value: float
+    percent: int
+
+    @property
+    def label(self) -> str:
+        """Число для показа: две цифры после запятой, как в CLI."""
+        return f"{self.value:.2f}"
+
+
+def score_views(scores: object) -> list[ScoreView]:
+    """Оценки узора столбиками. Порядок берётся из `Scores.as_dict` и не
+    сортируется: он там осмысленный, а не алфавитный."""
+    return [
+        ScoreView(name, value, round(value * 100))
+        for name, value in scores.as_dict().items()  # type: ignore[attr-defined]
+    ]
+
+
+def genome_summary(genome: object, catalogue: dict[str, Species]) -> str:
+    """Из чего собран сгенерированный узор — одной строкой под названием."""
+    values = genome.values  # type: ignore[attr-defined]
+    species = values.get("species", ())
+    names = ", ".join(_species_name(key, catalogue) for key in species)
+    numbers = ", ".join(
+        f"{name} {value:g}" if isinstance(value, int | float) else f"{name} {value}"
+        for name, value in sorted(values.items())
+        if name != "species"
+    )
+    return f"{names}. {numbers}" if numbers else names

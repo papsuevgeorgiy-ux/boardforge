@@ -6,13 +6,14 @@
 """
 
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
 
 from boardforge.core.ops import Crosscut, Glue, Strip
 from boardforge.core.program import Program
-from boardforge.web import TEXTURE_DELAY_MS, create_app
+from boardforge.web import TEMPLATES, TEXTURE_DELAY_MS, create_app
 from tests.helpers import build_checkerboard
 
 
@@ -76,10 +77,20 @@ def test_fragments_are_not_pages(client: TestClient) -> None:
 
 
 def test_edit_returns_only_the_touched_panels(client: TestClient) -> None:
-    """Правка возвращает превью и панели вне очереди, а не всю страницу."""
+    """Правка возвращает превью и панели вне очереди, а не всю страницу.
+
+    Панелей столько же, сколько в `_refresh.html`, минус превью: оно идёт
+    в цель, а не вне очереди. Число выводится из шаблона, а не вписано:
+    вписанное пришлось бы править при каждой новой панели, и однажды его
+    поправили бы не глядя — а тест сторожит не количество, а то, что ответ
+    остаётся набором фрагментов.
+    """
+    refresh = (TEMPLATES / "_refresh.html").read_text(encoding="utf-8")
+    panels = len(re.findall(r'{% include "(_\w+)\.html" %}', refresh)) - 1
+
     response = client.post("/strips", data={"action": "add"})
     assert response.status_code == 200
-    assert response.text.count('hx-swap-oob="true"') == 6
+    assert response.text.count('hx-swap-oob="true"') == panels
     assert 'id="board"' in response.text
 
 

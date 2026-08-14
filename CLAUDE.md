@@ -69,8 +69,13 @@ uv run pytest -x -q        # быстрый прогон при разработ
 uv run ruff check --fix .  # линт
 uv run ruff format .       # формат
 uv run boardforge serve    # веб-интерфейс на localhost
+uv run boardforge workshop # распечатка в мастерскую: чертёж, раскрой, смета
 uv run boardforge --help   # CLI
 ```
+
+Временные файлы тестов уходят в `.pytest-temp`, и `--basetemp` там быть
+не должно: он и был причиной четырёх подряд испорченных каталогов. Разбор —
+в `conftest.py` в корне; прочитай его прежде, чем трогать настройки pytest.
 
 ## Структура
 

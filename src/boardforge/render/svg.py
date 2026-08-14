@@ -6,6 +6,7 @@
 """
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from shapely.geometry import Polygon
@@ -14,8 +15,12 @@ from shapely.ops import unary_union
 from ..core.piece import Part, Piece
 from ..core.species import Palette, Species
 from . import texture
-from .canvas import Frame, document, element, num, wrap
-from .style import RenderOptions, RenderStyle, Stroke
+from .canvas import Frame, document, element, escape, num, wrap
+from .style import Label, RenderOptions, RenderStyle, Stroke
+
+LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+FONT = "'DejaVu Sans', 'Segoe UI', sans-serif"
 
 MIN_RING_STROKE_PX = 0.4
 MIN_RAY_STROKE_PX = 0.25
@@ -255,6 +260,37 @@ def cell_texture(key: str, cell: Cell, frame: Frame, options: RenderOptions) -> 
     return clip + wrap("g", drawn, clip_path=f"url(#{key})")
 
 
+def species_letters(species: Iterable[str]) -> dict[str, str]:
+    """Буква на породу: A, B, C… по алфавиту ключей справочника.
+
+    По алфавиту, а не по частоте и не по порядку в доске: буква должна
+    оставаться той же, пока состав щита не изменился, — иначе распечатанный
+    вчера чертёж и сегодняшний назовут одну породу по-разному.
+    """
+    return {key: LETTERS[index] for index, key in enumerate(sorted(set(species)))}
+
+
+def _labels(cells: list[Cell], label: Label, frame: Frame, digits: int) -> str:
+    """Буквы пород по центрам ячеек — единственная подпись внутри чертежа."""
+    letters = species_letters(cell.piece.species for cell in cells)
+    drawn = [
+        wrap(
+            "text",
+            escape(letters[cell.piece.species]),
+            x=num(frame.x(cell.center_x), digits),
+            y=num(frame.y(cell.center_y), digits),
+            text_anchor="middle",
+            dominant_baseline="central",
+            font_size=num(frame.px(label.height_mm), digits),
+        )
+        for cell in cells
+        if cell.size_mm >= label.min_cell_mm
+    ]
+    if not drawn:
+        return ""
+    return wrap("g", "".join(drawn), fill=label.color, font_family=FONT)
+
+
 def board_cells(
     board: Part, catalogue: dict[str, Species], style: RenderStyle
 ) -> list[Cell]:
@@ -304,7 +340,7 @@ def board_canvas(board: Part, options: RenderOptions) -> Canvas:
     )
 
 
-def _structure_body(
+def board_body(
     cells: list[Cell], canvas: Canvas, options: RenderOptions, texture_layer: str
 ) -> list[str]:
     """Тело документа: заливки, слой текстуры, швы, кромка — в этом порядке.
@@ -348,6 +384,8 @@ def _structure_body(
             **_stroke_attrs(style.edge, frame, options.digits),
         )
     )
+    if style.label is not None:
+        body.append(_labels(cells, style.label, frame, options.digits))
     return body
 
 
@@ -368,7 +406,7 @@ def render_structure(
     options = options or RenderOptions()
     canvas = board_canvas(board, options)
     cells = board_cells(board, catalogue, options.style)
-    body = _structure_body(cells, canvas, options, "")
+    body = board_body(cells, canvas, options, "")
     return document(canvas.width_px, canvas.height_px, body, (), options.digits)
 
 
@@ -410,19 +448,23 @@ def render_board(
         for index, cell in enumerate(cells)
         if is_textured(cell, canvas.frame, options)
     )
-    body = _structure_body(cells, canvas, options, layer)
+    body = board_body(cells, canvas, options, layer)
     return document(canvas.width_px, canvas.height_px, body, (), options.digits)
 
 
 __all__ = [
+    "FONT",
+    "LETTERS",
     "TEXTURE_GROUP_ID",
     "Canvas",
     "Cell",
     "RenderError",
     "RenderOptions",
+    "board_body",
     "board_canvas",
     "board_cells",
     "render_board",
     "render_structure",
     "render_texture",
+    "species_letters",
 ]

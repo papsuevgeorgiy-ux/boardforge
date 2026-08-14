@@ -8,7 +8,7 @@
 from dataclasses import dataclass
 
 from ..core.ops import Assemble, Crosscut, Glue
-from ..core.program import Program
+from ..core.program import Execution, Program
 from .allowances import Allowances
 
 
@@ -87,6 +87,18 @@ class MaterialReport:
         """Во сколько раз закупка больше готовой доски: 0.3 — это +30%."""
         return self.raw_volume_mm3 / self.board_volume_mm3 - 1.0
 
+    @property
+    def economy(self) -> float:
+        """Какая доля купленного дерева доехала до доски.
+
+        Здесь и только здесь. `fitness.economy` берёт это же число: мера узора
+        и строка сметы обязаны говорить одно и то же, иначе генератор оптимизирует
+        не то, за что потом платят.
+        """
+        if self.raw_volume_mm3 <= 0:
+            return 0.0
+        return max(0.0, min(1.0, self.board_volume_mm3 / self.raw_volume_mm3))
+
     def panel(self, billet: str) -> PanelStock:
         """Сырьё под конкретный щит."""
         for item in self.panels:
@@ -133,6 +145,43 @@ def _panel_stock(
     )
 
 
+def _glue_ups_downstream(prog: Program, billet: str, after: int) -> int:
+    """Через сколько склеек проходит материал щита после его торцовки.
+
+    Считать все `Assemble` программы нельзя: у кубов два щита-близнеца, их
+    операции идут подряд, и щит A получал бы припуск ещё и за склейки щита B.
+    Близнецы при этом одинаковы, а припуск у них выходил разный — верный признак,
+    что считалось не то. Материал прослеживается по имени: склейка касается щита,
+    если среди её источников есть он сам или то, во что он уже вошёл.
+    """
+    reached = {billet}
+    count = 0
+    for index, op in enumerate(prog.operations):
+        if index <= after or not isinstance(op, Assemble):
+            continue
+        if reached.intersection(op.sources):
+            reached.add(op.id)
+            count += 1
+    return count
+
+
+def _planed_area(prog: Program, execution: Execution) -> float:
+    """Площадь, проходящая под строгальным станком за все склейки.
+
+    По площади того щита, который вышел из склейки, а не готовой доски:
+    промежуточный щит углового узора вдвое-втрое больше неё, и считать его
+    по её размеру — занизить строгание там, где его больше всего.
+    """
+    total = 0.0
+    for op in prog.operations:
+        if not isinstance(op, Assemble):
+            continue
+        parts = execution.billets.get(op.id, ())
+        if parts:
+            total += parts[0].area_mm2
+    return total
+
+
 def material_report(
     prog: Program, allowances: Allowances | None = None
 ) -> MaterialReport:
@@ -145,9 +194,6 @@ def material_report(
         for index, op in enumerate(prog.operations)
         if isinstance(op, Crosscut)
     }
-    assemble_at = [
-        index for index, op in enumerate(prog.operations) if isinstance(op, Assemble)
-    ]
     strips_of = {cut.billet: cut.count for cut in execution.cuts if cut.angle_deg == 90.0}
 
     panels: list[PanelStock] = []
@@ -159,16 +205,21 @@ def material_report(
                 f"щит {op.id} ни разу не торцован — расчёт материала не определён"
             )
         cut_index, crosscut = crosscuts[op.id]
-        assemblies_after = sum(1 for index in assemble_at if index > cut_index)
         panels.append(
-            _panel_stock(op, crosscut, strips_of[op.id], assemblies_after, allow)
+            _panel_stock(
+                op,
+                crosscut,
+                strips_of[op.id],
+                _glue_ups_downstream(prog, op.id, cut_index),
+                allow,
+            )
         )
 
     board_area = execution.board.area_mm2
     board_volume = board_area * execution.board.thickness_mm
     raw_volume = sum(panel.raw_volume_mm3 for panel in panels)
 
-    planing = len(assemble_at) * board_area * allow.planing_mm
+    planing = _planed_area(prog, execution) * allow.planing_mm
     end_trim = 0.0
     edge_trim = 0.0
     kerf = 0.0

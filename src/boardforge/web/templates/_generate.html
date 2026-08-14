@@ -1,0 +1,39 @@
+<div id="generate" class="panel"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>Удиви меня</h2>
+  <p class="panel__hint">Генератор выбирает узор из библиотеки и подбирает
+    параметры, а негодные выбрасывает: неизготовимого он не предложит.
+    Один сид — один узор, всегда тот же самый.</p>
+  <form hx-post="/generate" hx-target="#board" hx-swap="outerHTML"
+        class="generate__form">
+    <label>Узор
+      <select name="template">
+        <option value="">любой</option>
+        {% for key, title in templates_list %}
+          <option value="{{ key }}">{{ title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Сид
+      <input type="text" name="seed" inputmode="numeric"
+             value="{{ seed if seed is not none else '' }}"
+             placeholder="пусто — случайный">
+    </label>
+    <button type="submit" class="primary">Удиви меня</button>
+  </form>
+
+  {% if scores %}
+    <p class="generate__genome"><strong>{{ genome_title }}</strong><br>
+      <span class="generate__params">{{ genome_summary }}</span></p>
+    <ul class="scores">
+      {% for item in scores %}
+        <li class="scores__row">
+          <span class="scores__name">{{ item.name }}</span>
+          <span class="scores__bar"><i style="width: {{ item.percent }}%"></i></span>
+          <span class="scores__value">{{ item.label }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="panel__hint">Экономичность — доля купленного дерева, доехавшая
+      до доски. Та же величина, из которой считается смета.</p>
+  {% endif %}
+</div>

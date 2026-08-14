@@ -115,6 +115,29 @@ input, select {
 
 .project__form { display: grid; gap: 0.4rem; }
 
+.generate__form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; align-items: end; }
+.generate__form label { display: grid; gap: 0.15rem; font-size: 0.75rem; color: var(--ink-soft); }
+.generate__form button { grid-column: 1 / -1; }
+.generate__genome { margin: 0.8rem 0 0.4rem; font-size: 0.85rem; }
+.generate__params { color: var(--ink-soft); font-size: 0.75rem; }
+
+.scores { list-style: none; margin: 0 0 0.6rem; padding: 0; display: grid; gap: 0.25rem; }
+.scores__row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr 2.2rem;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+.scores__name { color: var(--ink-soft); }
+.scores__bar { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; height: 0.5rem; }
+.scores__bar i { display: block; height: 100%; background: var(--accent); }
+.scores__value { text-align: right; font-variant-numeric: tabular-nums; }
+
+.shop { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.6rem; margin: 0; font-size: 0.8rem; }
+.shop dt { color: var(--ink-soft); }
+.shop dd { margin: 0; font-variant-numeric: tabular-nums; }
+
 .board {
   background: var(--panel);
   border: 1px solid var(--line);

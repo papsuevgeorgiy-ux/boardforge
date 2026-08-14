@@ -2,6 +2,9 @@ __pycache__/
 *.py[cod]
 .venv/
 .pytest_cache/
+.pytest-temp/
+# Мёртвые каталоги прошлых прогонов: недоступны без прав администратора,
+# удалить нельзя. Разбор причины — в conftest.py.
 .pytest-tmp/
 .pytest-tmp-b/
 .pytest-run/

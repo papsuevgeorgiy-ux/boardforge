@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..core.fitting import FitError, fit_dimensions
+from ..core.library import LIBRARY
 from ..core.program import Program
 from ..render.style import RenderOptions
 from ..render.svg import render_board, render_structure
@@ -61,6 +62,7 @@ def create_app(program: Program | None = None) -> FastAPI:
     def context(request: Request, full: bool = False, **extra) -> dict:
         board, failure = editor.build_board()
         issues = presenters.issue_views(editor.program, failure)
+        generated = editor.generated
         return {
             "request": request,
             "editor": editor,
@@ -81,6 +83,16 @@ def create_app(program: Program | None = None) -> FastAPI:
             "note": editor.note,
             "texture_delay_ms": TEXTURE_DELAY_MS,
             "default_path": str(editor.path or DEFAULT_PROJECT_PATH),
+            "templates_list": [(item.key, item.title) for item in LIBRARY.values()],
+            "seed": editor.seed,
+            "genome_title": LIBRARY[generated[0].template].title if generated else "",
+            "genome_summary": (
+                presenters.genome_summary(generated[0], editor.catalogue)
+                if generated
+                else ""
+            ),
+            "scores": presenters.score_views(generated[1]) if generated else None,
+            "shop": editor.workshop,
             **extra,
         }
 
@@ -137,6 +149,30 @@ def create_app(program: Program | None = None) -> FastAPI:
             editor.note = _fit_note(fit, editor)
         return refresh(request)
 
+    @app.post("/generate", response_class=HTMLResponse)
+    async def surprise_me(request: Request) -> Response:
+        """«Удиви меня»: узор по сиду, а не по кнопке.
+
+        Пустое поле сида — случайный; заполненное — тот же узор, что и в CLI
+        при том же числе. Сид возвращается в поле, поэтому понравившееся всегда
+        можно повторить, не сохраняя файл.
+        """
+        form = await read_form(request)
+        editor.note = ""
+        raw = form.get("seed").strip()
+        try:
+            wanted = int(raw) if raw else None
+        except ValueError:
+            editor.note = f"сид: «{raw}» — не целое число"
+            return refresh(request)
+        try:
+            used = editor.surprise(wanted, form.get("template") or None)
+        except EditError as error:
+            editor.note = str(error)
+        else:
+            editor.note = f"сид {used} — по нему этот узор соберётся снова"
+        return refresh(request)
+
     @app.post("/units", response_class=HTMLResponse)
     async def switch_units(request: Request) -> Response:
         form = await read_form(request)
@@ -164,6 +200,43 @@ def create_app(program: Program | None = None) -> FastAPI:
         else:
             editor.note = f"проект открыт: {opened}"
         return refresh(request)
+
+    @app.get("/workshop", response_class=HTMLResponse)
+    def workshop_page() -> Response:
+        """Распечатка в мастерскую — та же страница, что уходит в PDF.
+
+        Отдельным документом, а не панелью: её печатают, а не смотрят,
+        и делить её на фрагменты нечего.
+        """
+        from ..io.report import collect, render_workshop
+
+        board, failure = editor.build_board()
+        if board is None:
+            return HTMLResponse(
+                f"<h1>Распечатки нет</h1><p>Программа не исполняется: {failure}</p>",
+                status_code=409,
+            )
+        shop = collect(editor.program, editor.catalogue, units=editor.units)
+        return HTMLResponse(render_workshop(shop))
+
+    @app.get("/blueprint.svg")
+    def blueprint(request: Request) -> Response:
+        """Ч/б-чертёж отдельным файлом — его печатают чаще всей распечатки."""
+        from ..render.blueprint import Sheet, render_blueprint
+
+        board, failure = editor.build_board()
+        if board is None:
+            return PlainTextResponse(f"чертежа нет: {failure}", status_code=409)
+        return Response(
+            render_blueprint(
+                board,
+                editor.catalogue,
+                RenderOptions(scale=editor.scale),
+                Sheet(),
+                editor.units,
+            ),
+            media_type="image/svg+xml",
+        )
 
     @app.get("/project.json")
     def download_project() -> Response:
