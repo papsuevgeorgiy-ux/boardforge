@@ -70,6 +70,69 @@ def _contact_sheet(args: argparse.Namespace) -> int:
     return 0
 
 
+def _generate(args: argparse.Namespace) -> int:
+    from ..core.fitness import score
+    from ..core.generate import evolve, generate
+
+    catalogue = load_species(args.species)
+    if args.evolve:
+        best = evolve(
+            args.seed,
+            generations=args.generations,
+            population=args.population,
+            catalogue=catalogue,
+        )
+        genome, program, scores = best.genome, best.program, best.scores
+    else:
+        genome, program = generate(args.seed, catalogue, template=args.template)
+        scores = score(program, catalogue)
+
+    board = program.apply()
+    options = RenderOptions(scale=args.scale)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(render_board(board, catalogue, options), encoding="utf-8")
+
+    print(f"сид {args.seed}: узор «{genome.template}», ячеек {len(board.pieces)}")
+    print(f"размер {board.width_mm:.0f} x {board.length_mm:.0f} мм")
+    for name, value in scores.as_dict().items():
+        print(f"  {name:<14} {value:.2f}")
+    print(f"  {'итого':<14} {scores.total():.2f}")
+    print(f"сохранено: {args.output}")
+    return 0
+
+
+def _image(args: argparse.Namespace) -> int:
+    from ..core.imaging import quantise
+    from ..io.images import read_image
+
+    catalogue = load_species(args.species)
+    pixels = read_image(args.image)
+    mosaic = quantise(
+        pixels,
+        catalogue,
+        columns=args.columns,
+        rows=args.rows,
+        billets=args.billets,
+        cell_mm=args.cell,
+        allowed=tuple(args.only) if args.only else None,
+    )
+
+    board = mosaic.program.apply()
+    options = RenderOptions(scale=args.scale)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(render_board(board, catalogue, options), encoding="utf-8")
+
+    print(
+        f"{args.image}: {args.columns} x {args.rows} ячеек, щитов {len(mosaic.billets)}"
+    )
+    print(f"точность: {mosaic.fidelity:.0%} ячеек совпали с картинкой")
+    for index, strips in enumerate(mosaic.billets):
+        used = ", ".join(sorted({catalogue[key].name for key in strips}))
+        print(f"  щит {chr(ord('A') + index)}: {used}")
+    print(f"сохранено: {args.output}")
+    return 0
+
+
 def _serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -183,6 +246,71 @@ def build_parser() -> argparse.ArgumentParser:
     )
     contact.add_argument("--scale", type=float, default=2.0, help="пикселей на миллиметр")
     contact.set_defaults(handler=_contact_sheet)
+
+    generated = commands.add_parser(
+        "generate",
+        help="случайный узор по сиду, с оценками",
+        description=(
+            "Собирает изготовимый узор из библиотеки со случайными параметрами. "
+            "Один сид даёт один и тот же узор. С --evolve вместо одной попытки "
+            "идёт отбор по фитнес-функции."
+        ),
+    )
+    generated.add_argument("--seed", type=int, default=1, help="сид генератора")
+    generated.add_argument(
+        "--template", default=None, help="назначить шаблон вместо случайного"
+    )
+    generated.add_argument(
+        "--evolve", action="store_true", help="эволюционный режим вместо одной попытки"
+    )
+    generated.add_argument("--generations", type=int, default=6, help="сколько поколений")
+    generated.add_argument("--population", type=int, default=8, help="размер популяции")
+    generated.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=OUT_DIR / "generated.svg",
+        help="куда сохранить",
+    )
+    generated.add_argument(
+        "--species", type=Path, default=DEFAULT_SPECIES_PATH, help="свой справочник пород"
+    )
+    generated.add_argument(
+        "--scale", type=float, default=2.0, help="пикселей на миллиметр"
+    )
+    generated.set_defaults(handler=_generate)
+
+    image = commands.add_parser(
+        "image",
+        help="картинка → доска через квантование в CIELAB",
+        description=(
+            "Усредняет картинку в сетку ячеек, подбирает ближайшие породы "
+            "в CIELAB и раскладывает столбцы по немногим щитам — иначе доску "
+            "не склеить. Честно печатает, какая доля ячеек совпала."
+        ),
+    )
+    image.add_argument("image", type=Path, help="PNG или PPM")
+    image.add_argument("--columns", type=int, default=14, help="ячеек по ширине")
+    image.add_argument("--rows", type=int, default=12, help="ячеек по высоте")
+    image.add_argument(
+        "--billets", type=int, default=2, help="сколько разных щитов готов склеить"
+    )
+    image.add_argument("--cell", type=float, default=34.0, help="сторона ячейки, мм")
+    image.add_argument(
+        "--only", nargs="*", default=None, help="ограничить набор пород их ключами"
+    )
+    image.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=OUT_DIR / "image-board.svg",
+        help="куда сохранить",
+    )
+    image.add_argument(
+        "--species", type=Path, default=DEFAULT_SPECIES_PATH, help="свой справочник пород"
+    )
+    image.add_argument("--scale", type=float, default=2.0, help="пикселей на миллиметр")
+    image.set_defaults(handler=_image)
 
     serve = commands.add_parser(
         "serve",

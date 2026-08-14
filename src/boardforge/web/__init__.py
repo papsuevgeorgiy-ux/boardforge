@@ -39,9 +39,14 @@ DEFAULT_PROJECT_PATH = "out/project.json"
 
 
 def _default_program() -> Program:
-    from ..cli.examples import checkerboard
+    """Чем открывается пустой редактор — шахматкой из библиотеки узоров.
 
-    return checkerboard()
+    Из `core/library.py`, а не из `cli/`: веб не имеет права зависеть
+    от командной строки, и до Дня 4 эта зависимость была временной подпоркой.
+    """
+    from ..core.library import build
+
+    return build("checkerboard").program
 
 
 def create_app(program: Program | None = None) -> FastAPI:

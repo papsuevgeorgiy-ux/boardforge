@@ -1,0 +1,5 @@
+birch:
+  name: Берёза
+  density: 640
+  shrinkage: {tangential: 9.0, radial: 5.3}
+  color: "#e0d2b4"

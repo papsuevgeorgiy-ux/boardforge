@@ -1,134 +1,23 @@
-"""Доски для просмотра глазами: узоры и диагностические фикстуры.
+"""Доски для просмотра глазами: узоры библиотеки и диагностические фикстуры.
 
-`EXAMPLES` — узоры. Живут здесь временно: библиотека узоров это День 4, тогда
-они уедут в неё, и порог «узор — это не пара ячеек» уедет вместе с ними.
+`EXAMPLES` — вся библиотека узоров Дня 4. Раньше здесь лежали три доски,
+выписанные руками; теперь это вид на `core/library.py`, и добавить узор
+в набор для показа можно только добавив его в библиотеку. Так и надо: демо,
+которое расходится с библиотекой, врёт про инструмент.
 
 `DIAGNOSTICS` — не узоры, а стенды: доска, собранная так, чтобы одно свойство
 рендера было видно глазом и ничем другим не объяснялось. Шаблоном такое
 предлагать нельзя, поэтому набор отдельный.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 
-from ..core.ops import Assemble, Crop, Crosscut, Glue, PieceRef, StandOnEnd, Strip
-from ..core.patterns import StripedPanel, chevron, herringbone
+from ..core.library import LIBRARY
+from ..core.ops import Assemble, Crosscut, Glue, PieceRef, StandOnEnd, Strip
 from ..core.program import Program
 
 PANEL = "A"
 BOARD = "B"
-
-
-def _brick(
-    species: Sequence[str],
-    cell_mm: float,
-    columns: int,
-    strips_count: int,
-    shift: int,
-    period: int,
-) -> Program:
-    """Щит из реек `species`, торцовка с шагом ячейки, кладка со сдвигом.
-
-    Породы повторяются по кругу, пока не наберётся `strips_count` реек. Ряд
-    номер n сдвигается на `n * shift % period` ячеек; рваные после сдвига края
-    срезает `Crop`, и на него же уходит `period - 1` ряд сверху и снизу.
-    """
-    strips = tuple(
-        Strip(species[index % len(species)], cell_mm) for index in range(strips_count)
-    )
-    offsets = tuple((index * shift % period) * cell_mm for index in range(columns))
-    margin = max(offsets)
-    return Program(
-        operations=(
-            Glue(
-                id=PANEL,
-                strips=strips,
-                length_mm=cell_mm * columns,
-                thickness_mm=cell_mm,
-            ),
-            Crosscut(source=PANEL, step_mm=cell_mm),
-            StandOnEnd(source=PANEL),
-            Assemble(
-                id=BOARD,
-                pieces=tuple(PieceRef(PANEL, index) for index in range(columns)),
-                reversed=(False,) * columns,
-                offsets_mm=offsets,
-            ),
-            Crop(source=BOARD, bottom=margin, top=margin),
-        )
-    )
-
-
-def checkerboard() -> Program:
-    """Эталонная шахматка: клён и орех, ячейка 40 мм."""
-    return _brick(
-        ("maple_hard", "walnut_black"),
-        40.0,
-        columns=15,
-        strips_count=6,
-        shift=1,
-        period=2,
-    )
-
-
-def strong_rings() -> Program:
-    """Породы с резкими кольцами: ясень, дуб, граб — проверка текстуры."""
-    return _brick(
-        ("ash", "oak", "hornbeam"), 34.0, columns=13, strips_count=6, shift=1, period=3
-    )
-
-
-def tropical() -> Program:
-    """Тропические: падук, амарант, венге, ятоба, сапеле — проверка цвета."""
-    return _brick(
-        ("padauk", "purpleheart", "wenge", "jatoba", "sapele"),
-        30.0,
-        columns=14,
-        strips_count=10,
-        shift=2,
-        period=5,
-    )
-
-
-def _striped() -> StripedPanel:
-    """Полосатая заготовка под угловые узоры.
-
-    Породный цикл повторён трижды: при одном сдвиг ряда переносить не на что
-    и часть швов остаётся без материала — валидатор про это предупреждает.
-    """
-    return StripedPanel(
-        species=("maple_hard", "walnut_black", "cherry"),
-        strip_width_mm=36.0,
-        board_height_mm=40.0,
-        column_width_mm=20.0,
-        columns=12,
-        # Накопленный сдвиг рядов съедает высоту, и прямоугольник после обрезки
-        # выходит тем ниже, чем короче щит. Шесть циклов дают доску, на которой
-        # узор виден целиком, а не полоской.
-        repeats=6,
-    )
-
-
-ANGLE_DEG = 45.0
-CUT_STEP_MM = 40.0
-TRIM = 3
-"""Крайние полосы при угловом резе выходят короткими, и щит из них рваный.
-Отбраковка трёх с каждой стороны оставляет ряды сопоставимой длины — только
-тогда из щита выходит прямоугольник, а не лестница: 360 × 200 мм."""
-
-
-def chevron_board() -> Program:
-    """Шеврон: породные линии сходятся на швах в непрерывный зигзаг."""
-    return chevron(
-        _striped(), angle_deg=ANGLE_DEG, step_mm=CUT_STEP_MM, trim=TRIM, square=True
-    )
-
-
-def herringbone_board() -> Program:
-    """Ёлочка: тот же рез и то же зеркало, зигзаг разорван на полшага."""
-    return herringbone(
-        _striped(), angle_deg=ANGLE_DEG, step_mm=CUT_STEP_MM, trim=TRIM, square=True
-    )
-
 
 STAND_SPECIES = "ash"
 STAND_CELLS = 8
@@ -197,13 +86,19 @@ def column_check() -> Program:
 
 type Board = tuple[str, Callable[[], Program]]
 
-EXAMPLES: dict[str, Board] = {
-    "checkerboard": ("шахматка клён / орех", checkerboard),
-    "strong-rings": ("ясень, дуб, граб — сильные кольца", strong_rings),
-    "tropical": ("падук, амарант, венге, ятоба, сапеле", tropical),
-    "chevron": ("шеврон: клён / орех / вишня под 45°", chevron_board),
-    "herringbone": ("ёлочка: тот же рез, зигзаг разорван", herringbone_board),
-}
+
+def _from_library() -> dict[str, Board]:
+    """Библиотека в виде набора демо-досок, в порядке объявления шаблонов."""
+    return {
+        key: (
+            f"{template.title.lower()}: {template.summary.lower()}",
+            (lambda item=template: item().program),
+        )
+        for key, template in LIBRARY.items()
+    }
+
+
+EXAMPLES: dict[str, Board] = _from_library()
 
 DIAGNOSTICS: dict[str, Board] = {
     "reversed-check": ("стенд: ясень, нечётные ячейки развёрнуты", reversed_check),

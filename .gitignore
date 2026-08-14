@@ -3,6 +3,8 @@ __pycache__/
 .venv/
 .pytest_cache/
 .pytest-tmp/
+.pytest-tmp-b/
+.pytest-run/
 .ruff_cache/
 dist/
 build/

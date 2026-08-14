@@ -7,6 +7,10 @@ from shapely.geometry import Polygon
 
 from .units import EPS
 
+_SNAP_MM = 1e-6
+"""Сетка округления контура детали: нанометр. На порядки мельче любого
+столярного допуска и на порядки крупнее ошибки округления в пересечениях."""
+
 
 def _min_rect_side(geometry: object) -> float:
     """Короткая сторона минимального повёрнутого прямоугольника.
@@ -248,10 +252,19 @@ class Part:
         Разница принципиальная. Ячейка — это область породы в куске дерева,
         а не отдельная деталь: её склеили несколько операций назад, и в руки
         её никто не берёт. По станку едет **деталь**, и опасен её контур.
+
+        Результат объединения округляется до нанометра. Без этого соседние
+        ячейки, чьи общие кромки разошлись на 1e-12 мм, оставляют в контуре
+        щели нулевой ширины — и `outline_min_angle_deg` честно находит там
+        нос в 0°, которого в дереве нет. Ложная ошибка изготовимости хуже
+        пропущенной: пользователь перестаёт читать замечания.
         """
+        from shapely import set_precision
         from shapely.ops import unary_union
 
-        return unary_union([piece.polygon for piece in self.pieces])
+        return set_precision(
+            unary_union([piece.polygon for piece in self.pieces]), _SNAP_MM
+        )
 
     @property
     def outline_min_width_mm(self) -> float:
