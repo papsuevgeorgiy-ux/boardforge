@@ -38,6 +38,12 @@
 #
 # Незаданные поля палитры выводятся из `base`, так что чужой справочник может
 # ограничиться одним цветом.
+# Источники данных:
+#   Усушка — Wood Handbook FPL-GTR-282, гл. 4, табл. 4-3 и 4-4.
+#   Плотность при 12% влажности — The Wood Database.
+#   hornbeam, padauk, wenge в Wood Handbook отсутствуют — усушка по The Wood Database.
+#   oak — белый дуб (Quercus alba), beech — европейский (Fagus sylvatica),
+#   ash — белый (Fraxinus americana), jatoba — по FPL проходит как Courbaril.
 
 maple_hard:
   name: Клён сахарный
@@ -53,7 +59,7 @@ maple_hard:
     ring_contrast: 0.34
     ray_width_mm: 0.10
     ray_contrast: 0.14
-    verified: false
+    verified: true
   note: эталон для разделочных досок; граница поздней зоны почти неразличима
 
 walnut_black:
@@ -70,7 +76,7 @@ walnut_black:
     ring_contrast: 0.42
     ray_width_mm: 0.16
     ray_contrast: 0.10
-    verified: false
+    verified: true
   note: классика контраста
 
 cherry:
@@ -87,7 +93,7 @@ cherry:
     ring_contrast: 0.34
     ray_width_mm: 0.14
     ray_contrast: 0.16
-    verified: false
+    verified: true
   fades: true
   note: темнеет от света
 
@@ -105,13 +111,13 @@ ash:
     ring_contrast: 0.62
     ray_width_mm: 0.15
     ray_contrast: 0.0
-    verified: false
+    verified: true
   open_pores: true
   note: кольцесосудистая — кольца резкие, лучей на торце не видно
 
 oak:
   name: Дуб
-  density: 700
+  density: 755
   shrinkage: {tangential: 10.5, radial: 5.6}
   palette:
     base: "#c3a274"
@@ -130,7 +136,7 @@ oak:
 beech:
   name: Бук
   density: 710
-  shrinkage: {tangential: 11.9, radial: 5.5}
+  shrinkage: {tangential: 11.7, radial: 5.8}
   palette:
     base: "#d5ab84"
     earlywood: "#dcb894"
@@ -141,12 +147,12 @@ beech:
     ring_contrast: 0.26
     ray_width_mm: 0.20
     ray_contrast: 0.22
-    verified: false
+    verified: true
   note: сильно «играет» при смене влажности; лучи узкие, но частые
 
 hornbeam:
   name: Граб
-  density: 750
+  density: 735
   shrinkage: {tangential: 11.5, radial: 6.8}
   palette:
     base: "#e3d9c2"
@@ -158,13 +164,13 @@ hornbeam:
     ring_contrast: 0.22
     ray_width_mm: 0.24
     ray_contrast: 0.24
-    verified: false
+    verified: true
   note: очень твёрдый
 
 padauk:
   name: Падук
   density: 745
-  shrinkage: {tangential: 5.2, radial: 3.3}
+  shrinkage: {tangential: 5.0, radial: 3.1}
   palette:
     base: "#bd4419"
     earlywood: "#c94d20"
@@ -175,13 +181,13 @@ padauk:
     ring_contrast: 0.28
     ray_width_mm: 0.14
     ray_contrast: 0.07
-    verified: false
+    verified: true
   fades: true
   note: со временем буреет
 
 purpleheart:
   name: Амарант
-  density: 880
+  density: 905
   shrinkage: {tangential: 6.1, radial: 3.2}
   palette:
     base: "#5d3a6b"
@@ -193,7 +199,7 @@ purpleheart:
     ring_contrast: 0.24
     ray_width_mm: 0.14
     ray_contrast: 0.07
-    verified: false
+    verified: true
   allergen: true
   fades: true
   note: цвет нестабилен на свету
@@ -201,7 +207,7 @@ purpleheart:
 wenge:
   name: Венге
   density: 870
-  shrinkage: {tangential: 8.1, radial: 4.8}
+  shrinkage: {tangential: 8.3, radial: 4.8}
   palette:
     base: "#3b2f2a"
     earlywood: "#4b3c34"
@@ -219,7 +225,7 @@ wenge:
 jatoba:
   name: Ятоба
   density: 910
-  shrinkage: {tangential: 7.7, radial: 4.0}
+  shrinkage: {tangential: 8.5, radial: 4.5}
   palette:
     base: "#8b4a2f"
     earlywood: "#955338"
@@ -230,12 +236,12 @@ jatoba:
     ring_contrast: 0.34
     ray_width_mm: 0.15
     ray_contrast: 0.09
-    verified: false
+    verified: true
   note: тяжёлая
 
 sapele:
   name: Сапеле
-  density: 640
+  density: 665
   shrinkage: {tangential: 7.4, radial: 4.6}
   palette:
     base: "#8c4e33"
@@ -248,4 +254,4 @@ sapele:
     ray_width_mm: 0.16
     ray_contrast: 0.12
 
-    verified: false
+    verified: true
