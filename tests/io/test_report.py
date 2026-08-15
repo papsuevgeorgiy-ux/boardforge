@@ -131,3 +131,19 @@ def test_report_does_no_arithmetic_of_its_own(shop) -> None:
     assert shop.board_dm3 == pytest.approx(shop.material.board_volume_mm3 / 1e6)
     total = sum(volume for _, volume, _ in shop.losses)
     assert total == pytest.approx(shop.material.losses.total_mm3 / 1e6)
+
+
+def test_order_of_work_is_on_the_page(page, shop) -> None:
+    """Порядок работ — часть распечатки, а не отдельная бумажка.
+
+    Шагов на странице столько же, сколько операций в программе: распечатка
+    ничего не досочиняет и ничего не пропускает.
+    """
+    assert "Порядок работ" in page
+    for number in range(1, len(shop.program.operations) + 1):
+        assert f"Шаг {number}." in page
+
+
+def test_every_step_brings_its_drawing(page, shop) -> None:
+    """У каждого шага своя картинка: одного чертежа готовой доски мало."""
+    assert page.count('<div class="drawing">') == len(shop.program.operations) + 1

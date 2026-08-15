@@ -9,10 +9,14 @@
 from dataclasses import dataclass
 
 from ..core import safety
-from ..core.ops import Assemble, Crop, Crosscut, Cut, Glue, Operation, StandOnEnd
 from ..core.program import Issue, Program, ProgramError
 from ..core.species import Species
 from ..core.units import Units
+from ..io.steps import describe, species_name
+
+# `describe` живёт в `io/steps.py`, а не здесь: теми же словами говорит
+# пошаговая инструкция в распечатке, и расходиться им нельзя. Направление
+# импорта законное — веб стоит над `io/`.
 
 LEVELS = {"error": "ошибка", "warning": "предупреждение"}
 
@@ -41,78 +45,6 @@ class IssueView:
     level_label: str
     message: str
     where: str
-
-
-def _species_name(key: str, catalogue: dict[str, Species]) -> str:
-    found = catalogue.get(key)
-    return found.name if found else key
-
-
-def describe(
-    op: Operation, catalogue: dict[str, Species], units: Units
-) -> tuple[str, str, str]:
-    """Название операции, её суть и подробности — тремя строками."""
-    match op:
-        case Glue():
-            rails = ", ".join(
-                f"{_species_name(strip.species, catalogue)} "
-                f"{units.format(strip.width_mm)}"
-                for strip in op.strips
-            )
-            return (
-                "Склейка",
-                f"Щит {op.id} из {len(op.strips)} реек",
-                f"{rails}. Длина {units.format(op.length_mm)}, "
-                f"толщина {units.format(op.thickness_mm)}",
-            )
-        case Crosscut():
-            return (
-                "Торцовка",
-                f"Щит {op.source} режется поперёк с шагом {units.format(op.step_mm)}",
-                "Шаг торцовки становится высотой доски",
-            )
-        case StandOnEnd():
-            return (
-                "На торец",
-                f"Полосы щита {op.source} ставятся на торец",
-                "Волокна становятся вертикальными: это и делает доску торцевой",
-            )
-        case Cut():
-            return (
-                "Рез в плане",
-                f"Щит {op.source} под {op.angle_deg:g}° "
-                f"с шагом {units.format(op.step_mm)}",
-                "Волокна уже вертикальны, поэтому угол задаёт узор, а не текстуру",
-            )
-        case Assemble():
-            turned = sum(1 for value in op.reversed if value)
-            shifted = sum(1 for value in op.offsets_mm if abs(value) > 1e-9)
-            notes = [f"{len(op.pieces)} деталей из {', '.join(op.sources)}"]
-            if turned:
-                notes.append(f"развёрнуто {turned}")
-            if shifted:
-                notes.append(f"со сдвигом {shifted}")
-            if op.flipped and any(op.flipped):
-                notes.append(f"перевёрнуто {sum(1 for v in op.flipped if v)}")
-            return ("Склейка деталей", f"Щит {op.id}", ", ".join(notes))
-        case Crop():
-            sides = [
-                (name, value)
-                for name, value in (
-                    ("слева", op.left),
-                    ("справа", op.right),
-                    ("сверху", op.top),
-                    ("снизу", op.bottom),
-                )
-                if value
-            ]
-            detail = ", ".join(f"{name} {units.format(value)}" for name, value in sides)
-            return (
-                "Обрезка",
-                f"Щит {op.source} в размер",
-                detail or "ничего не срезается",
-            )
-    return ("Операция", type(op).__name__, "")
 
 
 def operation_views(
@@ -246,7 +178,7 @@ def genome_summary(genome: object, catalogue: dict[str, Species]) -> str:
     """Из чего собран сгенерированный узор — одной строкой под названием."""
     values = genome.values  # type: ignore[attr-defined]
     species = values.get("species", ())
-    names = ", ".join(_species_name(key, catalogue) for key in species)
+    names = ", ".join(species_name(key, catalogue) for key in species)
     numbers = ", ".join(
         f"{name} {value:g}" if isinstance(value, int | float) else f"{name} {value}"
         for name, value in sorted(values.items())

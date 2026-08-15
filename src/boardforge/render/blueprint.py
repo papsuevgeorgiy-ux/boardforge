@@ -31,6 +31,30 @@ TICK_MM = 3.0
 OFFSET_MM = 11.0
 """На сколько размерная линия отступает от кромки доски."""
 
+MIN_MARGIN_PX = 44.0
+MIN_OFFSET_PX = 20.0
+"""Нижние границы поля и отступа **в пикселях листа**.
+
+Поле и отступ заданы в миллиметрах доски и потому сжимаются вместе с масштабом,
+а подписи размеров набраны кеглем 11 и не сжимаются ни при каком. При `scale=2`
+одиннадцать миллиметров дают 22 пикселя, и цифра стоит свободно; на чертеже
+шага, приведённом к ширине листа, тот же отступ даёт меньше десяти — и кромка
+доски проходит прямо через «648 мм». Дефект вылез на Дне 6 вместе с шагами,
+но лежал в модуле с Дня 5: он не про масштаб, а про то, что геометрия здесь
+меряется в миллиметрах, а текст — в пикселях, и одно из двух должно уступать.
+Уступает геометрия: на мелком масштабе поле раздвигается до пиксельного порога.
+"""
+
+MIN_SHEET_PX = 430.0
+"""Наименьшая ширина листа — по штампу, а не по рисунку.
+
+Лист чертежа ровно так же широк, как доска на нём, и для готовой доски это
+верно. Но чертёж шага рисует и одну полосу шириной в 36 мм: лист выходит
+в девяносто пикселей, а строки штампа набраны кеглем 11 и в него не влезают —
+«Шаг 2. Торцовка» обрывается на «Шаг 2. Торцо». Штамп задаёт нижнюю границу
+листа, потому что он не часть доски, а часть бумаги.
+"""
+
 FOOTER_PX = 78.0
 """Высота штампа под рисунком, в пикселях документа. В пикселях, а не в
 миллиметрах доски: штамп — часть листа, а не часть доски, и от масштаба
@@ -110,6 +134,16 @@ def _dimension(
     return line + label
 
 
+def sheet_margin_mm(scale: float) -> float:
+    """Поле вокруг доски при этом масштабе — не меньше пиксельного порога."""
+    return max(MARGIN_MM, MIN_MARGIN_PX / scale) if scale > 0 else MARGIN_MM
+
+
+def sheet_offset_mm(scale: float) -> float:
+    """Отступ размерной линии от кромки — тоже не меньше пиксельного порога."""
+    return max(OFFSET_MM, MIN_OFFSET_PX / scale) if scale > 0 else OFFSET_MM
+
+
 def _legend(
     letters: dict[str, str],
     catalogue: dict[str, Species],
@@ -121,7 +155,10 @@ def _legend(
     for key, letter in sorted(letters.items(), key=lambda item: item[1]):
         name = catalogue[key].name if key in catalogue else key
         parts.append(f"{letter} — {name}")
-    return _text("   ".join(parts), x, y, 11.0)
+    # Разделитель — точка, а не пробелы: SVG по умолчанию (`xml:space="default"`)
+    # схлопывает подряд идущие пробелы в один, и легенда из трёх пород читалась
+    # как одна фраза — одинаково в браузере и в PDF.
+    return _text(" · ".join(parts), x, y, 11.0)
 
 
 def render_blueprint(
@@ -133,7 +170,9 @@ def render_blueprint(
 ) -> str:
     """Чертёж доски: рисунок, размеры, обозначения пород и штамп."""
     sheet = sheet or Sheet()
-    options = replace(options or RenderOptions(), style=BLUEPRINT, margin_mm=MARGIN_MM)
+    options = options or RenderOptions()
+    offset = sheet_offset_mm(options.scale)
+    options = replace(options, style=BLUEPRINT, margin_mm=sheet_margin_mm(options.scale))
 
     canvas = board_canvas(board, options)
     cells = board_cells(board, catalogue, options.style)
@@ -146,15 +185,15 @@ def render_blueprint(
             "g",
             _dimension(
                 frame,
-                (xmin, ymin - OFFSET_MM),
-                (xmax, ymin - OFFSET_MM),
+                (xmin, ymin - offset),
+                (xmax, ymin - offset),
                 units.format(xmax - xmin),
                 horizontal=True,
             )
             + _dimension(
                 frame,
-                (xmin - OFFSET_MM, ymin),
-                (xmin - OFFSET_MM, ymax),
+                (xmin - offset, ymin),
+                (xmin - offset, ymax),
                 units.format(ymax - ymin),
                 horizontal=False,
             ),
@@ -165,10 +204,11 @@ def render_blueprint(
 
     letters = species_letters(cell.piece.species for cell in cells)
     top = canvas.height_px
+    sheet_width = max(canvas.width_px, MIN_SHEET_PX)
     footer = [
         element(
             "path",
-            d=f"M0 {num(top)}H{num(canvas.width_px)}",
+            d=f"M0 {num(top)}H{num(sheet_width)}",
             stroke=INK,
             stroke_width="1",
             fill="none",
@@ -193,15 +233,21 @@ def render_blueprint(
             "rect",
             x="0",
             y=num(top),
-            width=num(canvas.width_px),
+            width=num(sheet_width),
             height=num(FOOTER_PX),
             fill="#ffffff",
         ),
     )
 
-    return document(
-        canvas.width_px, canvas.height_px + FOOTER_PX, body, (), options.digits
-    )
+    return document(sheet_width, canvas.height_px + FOOTER_PX, body, (), options.digits)
 
 
-__all__ = ["FOOTER_PX", "MARGIN_MM", "Sheet", "render_blueprint"]
+__all__ = [
+    "FOOTER_PX",
+    "MARGIN_MM",
+    "MIN_SHEET_PX",
+    "Sheet",
+    "render_blueprint",
+    "sheet_margin_mm",
+    "sheet_offset_mm",
+]

@@ -19,6 +19,8 @@
   .lead { font-size: 9pt; }
   .warn { border: 1px solid #000; padding: 2mm; margin: 0 0 2mm; page-break-inside: avoid; }
   .sheet { page-break-before: always; }
+  .step { page-break-inside: avoid; margin: 0 0 5mm; }
+  .step h2 { margin-top: 0; }
   ul { margin: 0 0 2mm; padding-left: 5mm; }
 </style>
 </head>
@@ -177,6 +179,23 @@
   </tr>
   {% endfor %}
 </table>
+{% endfor %}
+</div>
+
+<div class="sheet">
+<h1>Порядок работ</h1>
+<p class="lead">
+  Шагов столько же, сколько операций в программе доски, и это не совпадение:
+  узор, раскрой и смета выведены из этой же последовательности. Чертёж под
+  каждым шагом показывает, что должно лежать на верстаке, когда шаг закончен.
+</p>
+{% for step in steps %}
+<div class="step">
+  <h2>Шаг {{ step.number }}. {{ step.kind }} — {{ step.title }}</h2>
+  <p>{{ step.detail }}</p>
+  <p class="lead">Получится: {{ step.outcome }}</p>
+  <div class="drawing">{{ step.drawing|safe }}</div>
+</div>
 {% endfor %}
 </div>
 

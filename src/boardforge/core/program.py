@@ -74,6 +74,28 @@ class Execution:
 
 
 @dataclass(frozen=True, slots=True)
+class Frame:
+    """Что лежит на верстаке сразу после операции.
+
+    Отличается от `_Snapshot` назначением, а не составом: снимок — внутренний
+    кэш исполнения, кадр — то, что показывают человеку. Отсюда `operation`
+    и `target`: инструкции надо не только состояние, но и чем оно получено
+    и на какую заготовку смотреть.
+    """
+
+    index: int
+    operation: Operation
+    billets: dict[str, Billet]
+    target: str
+    """Имя заготовки, которой коснулась операция."""
+
+    @property
+    def parts(self) -> Billet:
+        """Детали заготовки, над которой работали: щит — одна, после реза — пачка."""
+        return self.billets[self.target]
+
+
+@dataclass(frozen=True, slots=True)
 class _Snapshot:
     """Состояние исполнения после префикса программы — то, что кладём в кэш.
 
@@ -420,70 +442,7 @@ class Program:
         for op_index, op in enumerate(self.operations):
             if op_index < done:
                 continue
-            match op:
-                case Glue():
-                    billets[op.id] = (
-                        geometry.glue(op.strips, op.length_mm, op.thickness_mm, op.id),
-                    )
-
-                case Crosscut():
-                    source = billets[op.source][0]
-                    sliced = geometry.slice_part(
-                        source, 90.0, op.step_mm, along_strip=True
-                    )
-                    billets[op.source] = tuple(sliced.parts)
-                    crosscut_steps[op.source] = op.step_mm
-                    cuts.append(
-                        CutYield(
-                            op.source,
-                            op.step_mm,
-                            90.0,
-                            len(sliced.parts),
-                            sliced.remainder_mm,
-                            source.length_mm,
-                            sliced.waste_mm2,
-                            op_index,
-                        )
-                    )
-
-                case StandOnEnd():
-                    step = crosscut_steps[op.source]
-                    billets[op.source] = tuple(
-                        geometry.stand_on_end(part, step) for part in billets[op.source]
-                    )
-
-                case Cut():
-                    source = billets[op.source][0]
-                    sliced = geometry.slice_part(source, op.angle_deg, op.step_mm)
-                    billets[op.source] = tuple(sliced.parts)
-                    cuts.append(
-                        CutYield(
-                            op.source,
-                            op.step_mm,
-                            op.angle_deg,
-                            len(sliced.parts),
-                            sliced.remainder_mm,
-                            source.width_mm,
-                            sliced.waste_mm2,
-                            op_index,
-                        )
-                    )
-
-                case Assemble():
-                    selected = [self._resolve(billets, ref) for ref in op.pieces]
-                    billets[op.id] = (
-                        geometry.assemble(
-                            selected, op.reversed, op.offsets_mm, op.flipped
-                        ),
-                    )
-
-                case Crop():
-                    billets[op.source] = (
-                        geometry.crop(
-                            billets[op.source][0], op.left, op.right, op.top, op.bottom
-                        ),
-                    )
-
+            self._advance(op, op_index, billets, crosscut_steps, cuts)
             _remember(
                 self.operations[: op_index + 1],
                 _Snapshot(dict(billets), dict(crosscut_steps), tuple(cuts)),
@@ -491,6 +450,106 @@ class Program:
 
         result = target_of(self.operations[-1])
         return Execution(billets[result][0], tuple(cuts), billets)
+
+    def trace(self) -> "list[Frame]":
+        """Состояние заготовок после каждой операции — по кадру на операцию.
+
+        Нужна пошаговой инструкции: столяр видит не только готовую доску,
+        но и то, что лежит на верстаке после третьего реза. Кадры берутся
+        из **того же** исполнения, что и `run()` — через общий `_advance`,
+        а не через вторую копию цикла: разойдись они, инструкция описывала бы
+        не ту доску, которую считает смета.
+
+        Префиксный кэш здесь намеренно не используется: он умеет отдать
+        состояние только на конце запомненного префикса, а кадры нужны все.
+        Цена — полный прогон, но инструкцию печатают, а не крутят в редакторе.
+        """
+        errors = self.errors
+        if errors:
+            listing = "; ".join(str(issue) for issue in errors)
+            raise ProgramError(f"программа неисполнима: {listing}")
+
+        billets: dict[str, Billet] = {}
+        crosscut_steps: dict[str, float] = {}
+        cuts: list[CutYield] = []
+        frames = []
+        for op_index, op in enumerate(self.operations):
+            self._advance(op, op_index, billets, crosscut_steps, cuts)
+            frames.append(Frame(op_index, op, dict(billets), target_of(op)))
+        return frames
+
+    def _advance(
+        self,
+        op: Operation,
+        op_index: int,
+        billets: dict[str, Billet],
+        crosscut_steps: dict[str, float],
+        cuts: list[CutYield],
+    ) -> None:
+        """Применить одну операцию к состоянию исполнения.
+
+        Единственное место, где написано, что делает каждая операция. И `run`,
+        и `trace` идут через него — второй такой петли в модуле быть не должно.
+        """
+        match op:
+            case Glue():
+                billets[op.id] = (
+                    geometry.glue(op.strips, op.length_mm, op.thickness_mm, op.id),
+                )
+
+            case Crosscut():
+                source = billets[op.source][0]
+                sliced = geometry.slice_part(source, 90.0, op.step_mm, along_strip=True)
+                billets[op.source] = tuple(sliced.parts)
+                crosscut_steps[op.source] = op.step_mm
+                cuts.append(
+                    CutYield(
+                        op.source,
+                        op.step_mm,
+                        90.0,
+                        len(sliced.parts),
+                        sliced.remainder_mm,
+                        source.length_mm,
+                        sliced.waste_mm2,
+                        op_index,
+                    )
+                )
+
+            case StandOnEnd():
+                step = crosscut_steps[op.source]
+                billets[op.source] = tuple(
+                    geometry.stand_on_end(part, step) for part in billets[op.source]
+                )
+
+            case Cut():
+                source = billets[op.source][0]
+                sliced = geometry.slice_part(source, op.angle_deg, op.step_mm)
+                billets[op.source] = tuple(sliced.parts)
+                cuts.append(
+                    CutYield(
+                        op.source,
+                        op.step_mm,
+                        op.angle_deg,
+                        len(sliced.parts),
+                        sliced.remainder_mm,
+                        source.width_mm,
+                        sliced.waste_mm2,
+                        op_index,
+                    )
+                )
+
+            case Assemble():
+                selected = [self._resolve(billets, ref) for ref in op.pieces]
+                billets[op.id] = (
+                    geometry.assemble(selected, op.reversed, op.offsets_mm, op.flipped),
+                )
+
+            case Crop():
+                billets[op.source] = (
+                    geometry.crop(
+                        billets[op.source][0], op.left, op.right, op.top, op.bottom
+                    ),
+                )
 
     @staticmethod
     def _resolve(billets: dict[str, Billet], ref: Any) -> Part:

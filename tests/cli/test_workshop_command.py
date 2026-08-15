@@ -67,3 +67,17 @@ def test_angular_patterns_produce_a_printout(tmp_path, template) -> None:
     target = tmp_path / template
     assert main(["workshop", "--template", template, "-o", str(target)]) == 0
     assert (target / "workshop.html").exists()
+
+
+def test_workshop_prints_pdf(tmp_path, capsys) -> None:
+    """`--pdf` кладёт рядом со страницей её же, напечатанную WeasyPrint."""
+    from boardforge.io.pdf import printer_available
+
+    if not printer_available():
+        pytest.skip("нет системного GTK: печатать нечем")
+    target = tmp_path / "shop"
+    assert (
+        main(["workshop", "--template", "checkerboard", "-o", str(target), "--pdf"]) == 0
+    )
+    assert (target / "workshop.pdf").read_bytes().startswith(b"%PDF-")
+    assert "PDF:" in capsys.readouterr().out

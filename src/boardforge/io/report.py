@@ -126,6 +126,12 @@ def render_workshop(shop: Workshop, options: RenderOptions | None = None) -> str
     # в HTML как элемент, а не как отдельный документ.
     inline = drawing.split("\n", 1)[1]
 
+    # Шаги считаются здесь, а не в `collect`: у каждого свой чертёж, и стоит
+    # это столько же, сколько все остальные расчёты цеха вместе. Панель «Цех»
+    # в редакторе пересчитывается на каждую правку состава щита, и класть туда
+    # рендер восьми чертежей нельзя. Распечатку открывают намеренно и один раз.
+    from .steps import instructions
+
     return (
         _environment()
         .get_template("workshop.html")
@@ -134,6 +140,7 @@ def render_workshop(shop: Workshop, options: RenderOptions | None = None) -> str
             board=board,
             drawing=inline,
             letters=_letters(board, shop.catalogue),
+            steps=instructions(shop.program, shop.catalogue, shop.units, options),
         )
     )
 
@@ -152,13 +159,20 @@ def _letters(board: object, catalogue: dict[str, Species]) -> list[tuple[str, st
 
 
 def write_workshop(
-    shop: Workshop, directory: Path, options: RenderOptions | None = None
+    shop: Workshop,
+    directory: Path,
+    options: RenderOptions | None = None,
+    pdf: bool = False,
 ) -> Path:
     """Разложить распечатку по файлам и вернуть путь к странице.
 
     Принимает уже посчитанное, а не программу: расчёт цеха стоит сотни
     миллисекунд, и вызывающему он почти всегда нужен и сам — хотя бы чтобы
     сказать в консоль, во что доска обошлась.
+
+    `pdf` печатает **ту же** разметку, что легла в `.html`, — не пересобирая
+    её второй раз. Разойдись эти два документа, и цех получил бы не то, что
+    видно на экране.
     """
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -168,8 +182,13 @@ def write_workshop(
         render_blueprint(board, shop.catalogue, options, Sheet(), shop.units),
         encoding="utf-8",
     )
+    markup = render_workshop(shop, options)
     page = directory / "workshop.html"
-    page.write_text(render_workshop(shop, options), encoding="utf-8")
+    page.write_text(markup, encoding="utf-8")
+    if pdf:
+        from .pdf import write_pdf
+
+        write_pdf(markup, directory / "workshop.pdf")
     return page
 
 

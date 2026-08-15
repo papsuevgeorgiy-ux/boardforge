@@ -193,3 +193,66 @@ def test_footer_does_not_overlap_the_board(sheet, board, catalogue) -> None:
 def test_blueprint_is_deterministic(board, catalogue) -> None:
     """Чертёж — часть рендера: побайтово тот же при том же входе."""
     assert render_blueprint(board, catalogue) == render_blueprint(board, catalogue)
+
+
+def _sheet_size(svg: str) -> tuple[float, float]:
+    """Ширина и высота листа из заголовка документа."""
+    found = re.search(r'width="([\d.]+)" height="([\d.]+)"', svg)
+    assert found, "у документа должны быть размеры"
+    return float(found.group(1)), float(found.group(2))
+
+
+def test_dimension_room_survives_a_small_scale(board, catalogue) -> None:
+    """На мелком масштабе поле раздвигается: цифре размера нужны пиксели, не мм.
+
+    Дефект был настоящий и виден на бумаге: чертёж шага приводится к ширине
+    листа, масштаб падает ниже единицы, одиннадцать миллиметров отступа дают
+    меньше десяти пикселей — и кромка доски проходит сквозь подпись «648 мм».
+    """
+    from boardforge.render.blueprint import (
+        MIN_MARGIN_PX,
+        MIN_OFFSET_PX,
+        sheet_margin_mm,
+        sheet_offset_mm,
+    )
+
+    for scale in (0.2, 0.5, 0.9, 1.2):
+        assert sheet_margin_mm(scale) * scale >= MIN_MARGIN_PX - 1e-9
+        assert sheet_offset_mm(scale) * scale >= MIN_OFFSET_PX - 1e-9
+
+
+def test_generous_scale_keeps_the_original_field(board, catalogue) -> None:
+    """При рабочем масштабе чертежа поле прежнее — пиксельный порог не мешает.
+
+    Якорь к Дню 5: вид готового чертежа менять было не за чем, чинили только
+    мелкий масштаб.
+    """
+    from boardforge.render.blueprint import (
+        MARGIN_MM,
+        OFFSET_MM,
+        sheet_margin_mm,
+        sheet_offset_mm,
+    )
+
+    assert sheet_margin_mm(2.0) == MARGIN_MM
+    assert sheet_offset_mm(2.0) == OFFSET_MM
+
+
+def test_narrow_part_still_fits_its_stamp(catalogue) -> None:
+    """Лист не бывает уже штампа: узкая полоса не обрезает «Шаг 2. Торцовка».
+
+    Полоса берётся настоящая — из кадра после торцовки, а не выдуманная:
+    именно на ней штамп и обрывался.
+    """
+    from boardforge.render.blueprint import MIN_SHEET_PX
+
+    program = build("chevron").program
+    strip = program.trace()[1].parts[0]
+    assert strip.width_mm < 100.0, "после торцовки полоса обязана быть узкой"
+
+    svg = render_blueprint(
+        strip, catalogue, RenderOptions(scale=0.5), Sheet(step=2, title="Торцовка")
+    )
+    width, _ = _sheet_size(svg)
+    assert width >= MIN_SHEET_PX
+    assert "Шаг 2. Торцовка" in svg

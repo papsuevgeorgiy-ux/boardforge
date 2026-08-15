@@ -219,6 +219,31 @@ def create_app(program: Program | None = None) -> FastAPI:
         shop = collect(editor.program, editor.catalogue, units=editor.units)
         return HTMLResponse(render_workshop(shop))
 
+    @app.get("/workshop.pdf")
+    def workshop_pdf() -> Response:
+        """Та же распечатка, напечатанная WeasyPrint.
+
+        Отказ принтера — не пятисотка: GTK может быть не поставлен, и это
+        нормальное состояние машины, о котором надо сказать словами. Всё
+        остальное в интерфейсе при этом продолжает работать.
+        """
+        from ..io.pdf import PrinterError, render_pdf
+        from ..io.report import collect, render_workshop
+
+        board, failure = editor.build_board()
+        if board is None:
+            return PlainTextResponse(f"распечатки нет: {failure}", status_code=409)
+        shop = collect(editor.program, editor.catalogue, units=editor.units)
+        try:
+            printed = render_pdf(render_workshop(shop))
+        except PrinterError as error:
+            return PlainTextResponse(str(error), status_code=503)
+        return Response(
+            printed,
+            media_type="application/pdf",
+            headers={"content-disposition": 'attachment; filename="workshop.pdf"'},
+        )
+
     @app.get("/blueprint.svg")
     def blueprint(request: Request) -> Response:
         """Ч/б-чертёж отдельным файлом — его печатают чаще всей распечатки."""

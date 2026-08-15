@@ -310,3 +310,47 @@ def test_species_cycle_warning_reaches_the_page(tmp_path) -> None:
     assert "породным циклом" in page
     assert "предупреждение" in page
     assert "Операция 1 — Glue" in page
+
+
+def test_workshop_pdf_is_downloadable(client: TestClient) -> None:
+    """Кнопка «PDF» отдаёт файл, а не страницу.
+
+    Отдельно от `tests/io/test_pdf.py`: там проверяется принтер, здесь —
+    что маршрут вообще есть и отвечает вложением. Без GTK тест пропускается,
+    но отказ маршрута проверяется соседним тестом и без принтера.
+    """
+    from boardforge.io.pdf import printer_available
+
+    if not printer_available():
+        pytest.skip("нет системного GTK: печатать нечем")
+    response = client.get("/workshop.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.content.startswith(b"%PDF-")
+
+
+def test_missing_printer_does_not_break_the_editor(
+    client: TestClient, monkeypatch
+) -> None:
+    """Без GTK редактор продолжает работать, а PDF отвечает словами.
+
+    Это и есть требование Дня 7: на машине без нативных библиотек ложится
+    ровно одна кнопка, а не всё приложение.
+    """
+    import sys
+    import types
+
+    stub = types.ModuleType("weasyprint")
+
+    def missing(name: str):
+        raise OSError("cannot load library 'libgobject-2.0-0'")
+
+    stub.__getattr__ = missing  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "weasyprint", stub)
+
+    response = client.get("/workshop.pdf")
+    assert response.status_code == 503
+    assert "pacman -S mingw-w64-x86_64-pango" in response.text
+    assert client.get("/").status_code == 200
+    assert client.get("/workshop").status_code == 200

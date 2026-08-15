@@ -153,7 +153,7 @@ def _workshop(args: argparse.Namespace) -> int:
         program = build(args.template).program
 
     shop = collect(program, catalogue, units=units_by_key(args.units))
-    page = write_workshop(shop, args.output, RenderOptions(scale=args.scale))
+    page = write_workshop(shop, args.output, RenderOptions(scale=args.scale), args.pdf)
     board = program.run().board
     print(
         f"доска {board.width_mm:.0f} × {board.length_mm:.0f} × "
@@ -167,6 +167,8 @@ def _workshop(args: argparse.Namespace) -> int:
     for issue in shop.issues:
         print(f"  ! {issue.message.split('.')[0]}")
     print(f"распечатка: {page}")
+    if args.pdf:
+        print(f"PDF: {page.with_name('workshop.pdf')}")
     return 0
 
 
@@ -355,7 +357,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Собирает всё, с чем идут пилить: ч/б-чертёж с буквами пород, карту "
             "раскроя с номерами деталей, разбивку потерь, список в магазин и "
-            "себестоимость. Страница печатается из браузера и на Дне 6 станет PDF."
+            "себестоимость. Страница печатается из браузера, а с --pdf ложится в PDF."
         ),
     )
     workshop.add_argument(
@@ -377,6 +379,9 @@ def build_parser() -> argparse.ArgumentParser:
     workshop.add_argument("--units", default="mm", help="единицы показа: mm или inch")
     workshop.add_argument(
         "--scale", type=float, default=2.0, help="пикселей на миллиметр"
+    )
+    workshop.add_argument(
+        "--pdf", action="store_true", help="напечатать ту же страницу в PDF"
     )
     workshop.set_defaults(handler=_workshop)
 
