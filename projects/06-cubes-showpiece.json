@@ -1,0 +1,976 @@
+{
+  "schema_version": 2,
+  "operations": [
+    {
+      "op": "Glue",
+      "id": "A",
+      "strips": [
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        }
+      ],
+      "length_mm": 1280.0,
+      "thickness_mm": 29.444863728670914
+    },
+    {
+      "op": "Crosscut",
+      "source": "A",
+      "step_mm": 40.0
+    },
+    {
+      "op": "StandOnEnd",
+      "source": "A"
+    },
+    {
+      "op": "Assemble",
+      "id": "PA",
+      "pieces": [
+        {
+          "billet": "A",
+          "index": 0
+        },
+        {
+          "billet": "A",
+          "index": 1
+        },
+        {
+          "billet": "A",
+          "index": 2
+        },
+        {
+          "billet": "A",
+          "index": 3
+        },
+        {
+          "billet": "A",
+          "index": 4
+        },
+        {
+          "billet": "A",
+          "index": 5
+        },
+        {
+          "billet": "A",
+          "index": 6
+        },
+        {
+          "billet": "A",
+          "index": 7
+        },
+        {
+          "billet": "A",
+          "index": 8
+        },
+        {
+          "billet": "A",
+          "index": 9
+        },
+        {
+          "billet": "A",
+          "index": 10
+        },
+        {
+          "billet": "A",
+          "index": 11
+        },
+        {
+          "billet": "A",
+          "index": 12
+        },
+        {
+          "billet": "A",
+          "index": 13
+        },
+        {
+          "billet": "A",
+          "index": 14
+        },
+        {
+          "billet": "A",
+          "index": 15
+        },
+        {
+          "billet": "A",
+          "index": 16
+        },
+        {
+          "billet": "A",
+          "index": 17
+        },
+        {
+          "billet": "A",
+          "index": 18
+        },
+        {
+          "billet": "A",
+          "index": 19
+        },
+        {
+          "billet": "A",
+          "index": 20
+        },
+        {
+          "billet": "A",
+          "index": 21
+        },
+        {
+          "billet": "A",
+          "index": 22
+        },
+        {
+          "billet": "A",
+          "index": 23
+        },
+        {
+          "billet": "A",
+          "index": 24
+        },
+        {
+          "billet": "A",
+          "index": 25
+        },
+        {
+          "billet": "A",
+          "index": 26
+        },
+        {
+          "billet": "A",
+          "index": 27
+        },
+        {
+          "billet": "A",
+          "index": 28
+        },
+        {
+          "billet": "A",
+          "index": 29
+        },
+        {
+          "billet": "A",
+          "index": 30
+        },
+        {
+          "billet": "A",
+          "index": 31
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Cut",
+      "source": "PA",
+      "angle_deg": 30.0,
+      "step_mm": 29.444863728670914
+    },
+    {
+      "op": "Assemble",
+      "id": "GA",
+      "pieces": [
+        {
+          "billet": "PA",
+          "index": 12
+        },
+        {
+          "billet": "PA",
+          "index": 13
+        },
+        {
+          "billet": "PA",
+          "index": 14
+        },
+        {
+          "billet": "PA",
+          "index": 15
+        },
+        {
+          "billet": "PA",
+          "index": 16
+        },
+        {
+          "billet": "PA",
+          "index": 17
+        },
+        {
+          "billet": "PA",
+          "index": 18
+        },
+        {
+          "billet": "PA",
+          "index": 19
+        },
+        {
+          "billet": "PA",
+          "index": 20
+        },
+        {
+          "billet": "PA",
+          "index": 21
+        },
+        {
+          "billet": "PA",
+          "index": 22
+        },
+        {
+          "billet": "PA",
+          "index": 23
+        },
+        {
+          "billet": "PA",
+          "index": 24
+        },
+        {
+          "billet": "PA",
+          "index": 25
+        },
+        {
+          "billet": "PA",
+          "index": 26
+        },
+        {
+          "billet": "PA",
+          "index": 27
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        1.1368683772161603e-13,
+        85.00000000000014,
+        -33.999999999999886,
+        51.00000000000014,
+        -67.99999999999983,
+        17.000000000000142,
+        -101.99999999999989,
+        -16.9999999999998,
+        68.00000000000017,
+        -50.99999999999986,
+        34.00000000000017,
+        -84.99999999999983,
+        1.7053025658242404e-13,
+        85.00000000000023,
+        -33.99999999999977,
+        55.882180341265325
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Crop",
+      "source": "GA",
+      "left": 0.0,
+      "right": 0.0,
+      "top": 102.00000000000003,
+      "bottom": 102.00000000000003
+    },
+    {
+      "op": "Glue",
+      "id": "B",
+      "strips": [
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "cherry",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "wenge",
+          "width_mm": 29.444863728670914
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 29.444863728670914
+        }
+      ],
+      "length_mm": 1280.0,
+      "thickness_mm": 29.444863728670914
+    },
+    {
+      "op": "Crosscut",
+      "source": "B",
+      "step_mm": 40.0
+    },
+    {
+      "op": "StandOnEnd",
+      "source": "B"
+    },
+    {
+      "op": "Assemble",
+      "id": "PB",
+      "pieces": [
+        {
+          "billet": "B",
+          "index": 0
+        },
+        {
+          "billet": "B",
+          "index": 1
+        },
+        {
+          "billet": "B",
+          "index": 2
+        },
+        {
+          "billet": "B",
+          "index": 3
+        },
+        {
+          "billet": "B",
+          "index": 4
+        },
+        {
+          "billet": "B",
+          "index": 5
+        },
+        {
+          "billet": "B",
+          "index": 6
+        },
+        {
+          "billet": "B",
+          "index": 7
+        },
+        {
+          "billet": "B",
+          "index": 8
+        },
+        {
+          "billet": "B",
+          "index": 9
+        },
+        {
+          "billet": "B",
+          "index": 10
+        },
+        {
+          "billet": "B",
+          "index": 11
+        },
+        {
+          "billet": "B",
+          "index": 12
+        },
+        {
+          "billet": "B",
+          "index": 13
+        },
+        {
+          "billet": "B",
+          "index": 14
+        },
+        {
+          "billet": "B",
+          "index": 15
+        },
+        {
+          "billet": "B",
+          "index": 16
+        },
+        {
+          "billet": "B",
+          "index": 17
+        },
+        {
+          "billet": "B",
+          "index": 18
+        },
+        {
+          "billet": "B",
+          "index": 19
+        },
+        {
+          "billet": "B",
+          "index": 20
+        },
+        {
+          "billet": "B",
+          "index": 21
+        },
+        {
+          "billet": "B",
+          "index": 22
+        },
+        {
+          "billet": "B",
+          "index": 23
+        },
+        {
+          "billet": "B",
+          "index": 24
+        },
+        {
+          "billet": "B",
+          "index": 25
+        },
+        {
+          "billet": "B",
+          "index": 26
+        },
+        {
+          "billet": "B",
+          "index": 27
+        },
+        {
+          "billet": "B",
+          "index": 28
+        },
+        {
+          "billet": "B",
+          "index": 29
+        },
+        {
+          "billet": "B",
+          "index": 30
+        },
+        {
+          "billet": "B",
+          "index": 31
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Cut",
+      "source": "PB",
+      "angle_deg": 30.0,
+      "step_mm": 29.444863728670914
+    },
+    {
+      "op": "Assemble",
+      "id": "GB",
+      "pieces": [
+        {
+          "billet": "PB",
+          "index": 12
+        },
+        {
+          "billet": "PB",
+          "index": 13
+        },
+        {
+          "billet": "PB",
+          "index": 14
+        },
+        {
+          "billet": "PB",
+          "index": 15
+        },
+        {
+          "billet": "PB",
+          "index": 16
+        },
+        {
+          "billet": "PB",
+          "index": 17
+        },
+        {
+          "billet": "PB",
+          "index": 18
+        },
+        {
+          "billet": "PB",
+          "index": 19
+        },
+        {
+          "billet": "PB",
+          "index": 20
+        },
+        {
+          "billet": "PB",
+          "index": 21
+        },
+        {
+          "billet": "PB",
+          "index": 22
+        },
+        {
+          "billet": "PB",
+          "index": 23
+        },
+        {
+          "billet": "PB",
+          "index": 24
+        },
+        {
+          "billet": "PB",
+          "index": 25
+        },
+        {
+          "billet": "PB",
+          "index": 26
+        },
+        {
+          "billet": "PB",
+          "index": 27
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        1.1368683772161603e-13,
+        85.00000000000014,
+        -33.999999999999886,
+        51.00000000000014,
+        -67.99999999999983,
+        17.000000000000142,
+        -101.99999999999989,
+        -16.9999999999998,
+        68.00000000000017,
+        -50.99999999999986,
+        34.00000000000017,
+        -84.99999999999983,
+        1.7053025658242404e-13,
+        85.00000000000023,
+        -33.99999999999977,
+        55.882180341265325
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Crop",
+      "source": "GB",
+      "left": 0.0,
+      "right": 0.0,
+      "top": 102.00000000000003,
+      "bottom": 102.00000000000003
+    },
+    {
+      "op": "Cut",
+      "source": "GA",
+      "angle_deg": 120.0,
+      "step_mm": 29.444863728670914
+    },
+    {
+      "op": "Cut",
+      "source": "GB",
+      "angle_deg": 120.0,
+      "step_mm": 29.444863728670914
+    },
+    {
+      "op": "Assemble",
+      "id": "BOARD",
+      "pieces": [
+        {
+          "billet": "GB",
+          "index": 11
+        },
+        {
+          "billet": "GA",
+          "index": 12
+        },
+        {
+          "billet": "GB",
+          "index": 13
+        },
+        {
+          "billet": "GA",
+          "index": 14
+        },
+        {
+          "billet": "GB",
+          "index": 15
+        },
+        {
+          "billet": "GA",
+          "index": 16
+        },
+        {
+          "billet": "GB",
+          "index": 17
+        },
+        {
+          "billet": "GA",
+          "index": 18
+        },
+        {
+          "billet": "GB",
+          "index": 19
+        },
+        {
+          "billet": "GA",
+          "index": 20
+        },
+        {
+          "billet": "GB",
+          "index": 21
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        -16.999999999999886,
+        -33.999999999999886,
+        17.000000000000114,
+        1.1368683772161603e-13,
+        -50.99999999999977,
+        -67.99999999999977,
+        85.00000000000028,
+        68.00000000000028,
+        -84.99999999999977,
+        -101.99999999999977,
+        51.000000000000284
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Crop",
+      "source": "BOARD",
+      "left": 0.0,
+      "right": 0.0,
+      "top": 203.85833300000024,
+      "bottom": 203.929166
+    }
+  ]
+}

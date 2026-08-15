@@ -41,6 +41,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Быстрый набор для разработки: `uv run pytest -m "not slow"`. Что помечено
+# и почему именно оно — в tests/conftest.py, разметка выведена из --durations.
+markers = ["slow: дорогие тесты; в разработке отключаются `-m \"not slow\"`"]
 # `--basetemp` здесь больше нет намеренно: именно он и делал каталог
 # недоступным. Разбор причины и замена — в conftest.py в корне.
 addopts = "-q"

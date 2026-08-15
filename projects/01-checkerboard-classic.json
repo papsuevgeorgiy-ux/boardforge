@@ -1,0 +1,153 @@
+{
+  "schema_version": 2,
+  "operations": [
+    {
+      "op": "Glue",
+      "id": "A",
+      "strips": [
+        {
+          "species": "maple_hard",
+          "width_mm": 32.0
+        },
+        {
+          "species": "walnut_black",
+          "width_mm": 32.0
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 32.0
+        },
+        {
+          "species": "walnut_black",
+          "width_mm": 32.0
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 32.0
+        },
+        {
+          "species": "walnut_black",
+          "width_mm": 32.0
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 32.0
+        },
+        {
+          "species": "walnut_black",
+          "width_mm": 32.0
+        },
+        {
+          "species": "maple_hard",
+          "width_mm": 32.0
+        },
+        {
+          "species": "walnut_black",
+          "width_mm": 32.0
+        }
+      ],
+      "length_mm": 384.0,
+      "thickness_mm": 32.0
+    },
+    {
+      "op": "Crosscut",
+      "source": "A",
+      "step_mm": 32.0
+    },
+    {
+      "op": "StandOnEnd",
+      "source": "A"
+    },
+    {
+      "op": "Assemble",
+      "id": "BOARD",
+      "pieces": [
+        {
+          "billet": "A",
+          "index": 0
+        },
+        {
+          "billet": "A",
+          "index": 1
+        },
+        {
+          "billet": "A",
+          "index": 2
+        },
+        {
+          "billet": "A",
+          "index": 3
+        },
+        {
+          "billet": "A",
+          "index": 4
+        },
+        {
+          "billet": "A",
+          "index": 5
+        },
+        {
+          "billet": "A",
+          "index": 6
+        },
+        {
+          "billet": "A",
+          "index": 7
+        },
+        {
+          "billet": "A",
+          "index": 8
+        },
+        {
+          "billet": "A",
+          "index": 9
+        },
+        {
+          "billet": "A",
+          "index": 10
+        },
+        {
+          "billet": "A",
+          "index": 11
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        0.0,
+        32.0,
+        0.0,
+        32.0,
+        0.0,
+        32.0,
+        0.0,
+        32.0,
+        0.0,
+        32.0,
+        0.0,
+        32.0
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Crop",
+      "source": "BOARD",
+      "left": 0.0,
+      "right": 0.0,
+      "top": 32.0,
+      "bottom": 32.0
+    }
+  ]
+}

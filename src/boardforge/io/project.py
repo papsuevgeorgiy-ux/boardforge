@@ -61,6 +61,11 @@ def load(path: Path) -> Program:
     path = Path(path)
     try:
         text = path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        # Самый частый отказ, и `[Errno 2] No such file or directory` в нём —
+        # английский шум поверх и без того понятного: файла нет. Путь при этом
+        # назвать обязательно, опечатку в нём человек ищет глазами.
+        raise ProjectError(f"файл не открывается: не найден {path}") from error
     except OSError as error:
         raise ProjectError(f"файл не открывается: {error}") from error
     return loads(text)

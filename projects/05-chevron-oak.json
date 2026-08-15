@@ -1,0 +1,258 @@
+{
+  "schema_version": 2,
+  "operations": [
+    {
+      "op": "Glue",
+      "id": "A",
+      "strips": [
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        },
+        {
+          "species": "oak",
+          "width_mm": 50.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 50.0
+        }
+      ],
+      "length_mm": 600.0,
+      "thickness_mm": 25.0
+    },
+    {
+      "op": "Crosscut",
+      "source": "A",
+      "step_mm": 50.0
+    },
+    {
+      "op": "StandOnEnd",
+      "source": "A"
+    },
+    {
+      "op": "Assemble",
+      "id": "P",
+      "pieces": [
+        {
+          "billet": "A",
+          "index": 0
+        },
+        {
+          "billet": "A",
+          "index": 1
+        },
+        {
+          "billet": "A",
+          "index": 2
+        },
+        {
+          "billet": "A",
+          "index": 3
+        },
+        {
+          "billet": "A",
+          "index": 4
+        },
+        {
+          "billet": "A",
+          "index": 5
+        },
+        {
+          "billet": "A",
+          "index": 6
+        },
+        {
+          "billet": "A",
+          "index": 7
+        },
+        {
+          "billet": "A",
+          "index": 8
+        },
+        {
+          "billet": "A",
+          "index": 9
+        },
+        {
+          "billet": "A",
+          "index": 10
+        },
+        {
+          "billet": "A",
+          "index": 11
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "flipped": null
+    },
+    {
+      "op": "Cut",
+      "source": "P",
+      "angle_deg": 45.0,
+      "step_mm": 50.0
+    },
+    {
+      "op": "Assemble",
+      "id": "BOARD",
+      "pieces": [
+        {
+          "billet": "P",
+          "index": 3
+        },
+        {
+          "billet": "P",
+          "index": 4
+        },
+        {
+          "billet": "P",
+          "index": 5
+        },
+        {
+          "billet": "P",
+          "index": 6
+        },
+        {
+          "billet": "P",
+          "index": 7
+        },
+        {
+          "billet": "P",
+          "index": 8
+        },
+        {
+          "billet": "P",
+          "index": 9
+        },
+        {
+          "billet": "P",
+          "index": 10
+        },
+        {
+          "billet": "P",
+          "index": 11
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        -8.578643762690518,
+        29.289321881345217,
+        -24.26406871192856,
+        -65.68542494923804,
+        34.31457505076196,
+        -7.106781186547522,
+        -48.528137423857004,
+        51.471862576142996,
+        10.050506338833515
+      ],
+      "flipped": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "op": "Crop",
+      "source": "BOARD",
+      "left": 0.0,
+      "right": 0.0,
+      "top": 182.4395752373095,
+      "bottom": 166.532288
+    }
+  ]
+}

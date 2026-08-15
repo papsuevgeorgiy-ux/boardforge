@@ -5,7 +5,7 @@ Typer не добавляем: две подкоманды не окупают �
 """
 
 import argparse
-import json
+import contextlib
 import sys
 import threading
 import webbrowser
@@ -138,15 +138,17 @@ def _image(args: argparse.Namespace) -> int:
 
 
 def _workshop(args: argparse.Namespace) -> int:
-    from ..core.program import Program
     from ..core.units import units_by_key
+    from ..io.project import load as load_project
     from ..io.report import collect, write_workshop
 
     catalogue = load_species(args.species)
     if args.project is not None:
-        program = Program.from_dict(
-            json.loads(Path(args.project).read_text(encoding="utf-8"))
-        )
+        # Через `io/project.py`, а не `json.loads`: там разбор того, что именно
+        # не так, человеческой фразой. Голый `json.loads` отвечал за него
+        # `[Errno 2] No such file or directory` — по-английски и с экранированным
+        # путём.
+        program = load_project(args.project)
     else:
         from ..core.library import build
 
@@ -179,12 +181,9 @@ def _serve(args: argparse.Namespace) -> int:
 
     program = None
     if args.project is not None:
-        editor_program = Path(args.project)
-        from ..core.program import Program
+        from ..io.project import load as load_project
 
-        program = Program.from_dict(
-            json.loads(editor_program.read_text(encoding="utf-8"))
-        )
+        program = load_project(args.project)
 
     url = f"http://{args.host}:{args.port}/"
     print(f"BoardForge: {url}")
@@ -192,6 +191,37 @@ def _serve(args: argparse.Namespace) -> int:
         threading.Timer(1.0, webbrowser.open, [url]).start()
     uvicorn.run(create_app(program), host=args.host, port=args.port, log_level="warning")
     return 0
+
+
+# Символы, которыми вывод говорит с человеком: стрелка в подсказке `image`,
+# знак умножения, кубический дециметр и рубль в сводке `workshop`. Ни одного
+# из них нет в cp1251 и cp866.
+_OUTPUT_PROBE = "→×³₽"
+
+
+def _use_unicode_output(stream: object) -> None:
+    """Перевести поток на UTF-8, если его кодировка не берёт наш алфавит.
+
+    Кодировку потока выбирает Python, а не мы: настоящая консоль Windows идёт
+    через `WriteConsoleW` и сообщает UTF-8, а пайп (Git Bash, перенаправление
+    в файл) получает кодировку локали — на русской системе cp1251 или cp866.
+    Тогда любая строка со стрелкой или рублём роняет печать, и лечится это
+    в потоке, а не в текстах сообщений: править тексты пришлось бы вечно.
+
+    Проба, а не проверка платформы: консоль, которая наш алфавит берёт, мы
+    не трогаем вовсе — переключив её на UTF-8 принудительно, мы получили бы
+    мозаику там, где всё работало.
+    """
+    encoding = getattr(stream, "encoding", None)
+    if encoding is None or not hasattr(stream, "reconfigure"):
+        return
+    try:
+        _OUTPUT_PROBE.encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        # Поток закрыт или подменён: падать на настройке вывода команда
+        # не должна, печать в таком потоке всё равно не наша забота.
+        with contextlib.suppress(OSError, ValueError):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -406,10 +436,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Точка входа консольной команды."""
+    # До `parse_args`: подсказку `--help` печатает argparse и делает это сам,
+    # не спрашивая нас и не попадая ни в какой `try`.
+    _use_unicode_output(sys.stdout)
+    _use_unicode_output(sys.stderr)
+
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
         return args.handler(args)
+    except UnicodeEncodeError:
+        # Наследует ValueError, и ветка ниже принимала его за отказ по делу:
+        # команда отрабатывала, писала файлы и возвращала 1 с жалобой на
+        # «charmap». Сбой вывода — наш дефект, и выглядеть он должен как дефект.
+        raise
     except (OSError, ValueError) as error:
         print(f"boardforge: {error}", file=sys.stderr)
         return 1

@@ -70,8 +70,14 @@ def test_directory_instead_of_a_file_is_explained(program, tmp_path) -> None:
 
 def test_missing_file_is_explained(tmp_path) -> None:
     """Несуществующий файл объясняется, а не роняет трейсбек."""
-    with pytest.raises(ProjectError, match="не открывается"):
-        load(tmp_path / "нет-такого.json")
+    missing = tmp_path / "нет-такого.json"
+    with pytest.raises(ProjectError, match="не открывается") as failure:
+        load(missing)
+
+    # Путь назван — опечатку в нём человек ищет глазами; английского Errno
+    # из недр pathlib в отказе быть не должно.
+    assert str(missing) in str(failure.value)
+    assert "Errno" not in str(failure.value)
 
 
 def test_broken_json_is_explained() -> None:

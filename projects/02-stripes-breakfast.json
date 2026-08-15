@@ -1,0 +1,153 @@
+{
+  "schema_version": 2,
+  "operations": [
+    {
+      "op": "Glue",
+      "id": "A",
+      "strips": [
+        {
+          "species": "ash",
+          "width_mm": 28.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 28.0
+        },
+        {
+          "species": "cherry",
+          "width_mm": 28.0
+        },
+        {
+          "species": "ash",
+          "width_mm": 28.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 28.0
+        },
+        {
+          "species": "cherry",
+          "width_mm": 28.0
+        },
+        {
+          "species": "ash",
+          "width_mm": 28.0
+        },
+        {
+          "species": "wenge",
+          "width_mm": 28.0
+        },
+        {
+          "species": "cherry",
+          "width_mm": 28.0
+        }
+      ],
+      "length_mm": 392.0,
+      "thickness_mm": 28.0
+    },
+    {
+      "op": "Crosscut",
+      "source": "A",
+      "step_mm": 28.0
+    },
+    {
+      "op": "StandOnEnd",
+      "source": "A"
+    },
+    {
+      "op": "Assemble",
+      "id": "BOARD",
+      "pieces": [
+        {
+          "billet": "A",
+          "index": 0
+        },
+        {
+          "billet": "A",
+          "index": 1
+        },
+        {
+          "billet": "A",
+          "index": 2
+        },
+        {
+          "billet": "A",
+          "index": 3
+        },
+        {
+          "billet": "A",
+          "index": 4
+        },
+        {
+          "billet": "A",
+          "index": 5
+        },
+        {
+          "billet": "A",
+          "index": 6
+        },
+        {
+          "billet": "A",
+          "index": 7
+        },
+        {
+          "billet": "A",
+          "index": 8
+        },
+        {
+          "billet": "A",
+          "index": 9
+        },
+        {
+          "billet": "A",
+          "index": 10
+        },
+        {
+          "billet": "A",
+          "index": 11
+        },
+        {
+          "billet": "A",
+          "index": 12
+        },
+        {
+          "billet": "A",
+          "index": 13
+        }
+      ],
+      "reversed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "offsets_mm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "flipped": null
+    }
+  ]
+}
