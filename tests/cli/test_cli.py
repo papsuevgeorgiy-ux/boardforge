@@ -169,3 +169,27 @@ def test_missing_command_is_rejected() -> None:
     """Без подкоманды argparse ругается сам."""
     with pytest.raises(SystemExit):
         main([])
+
+
+def test_missing_file_is_named_not_errno(tmp_path, capsys) -> None:
+    """Ненайденный файл называется путём, а не `[Errno 2]` по-английски.
+
+    Ветка одна на все подкоманды, поэтому и проверяется на той, что подешевле.
+    """
+    assert main(["swatches", "--species", str(tmp_path / "нет.yaml")]) == 1
+
+    complaint = capsys.readouterr().err
+    assert "файл не найден" in complaint
+    assert "нет.yaml" in complaint
+    assert "Errno" not in complaint
+
+
+def test_unknown_units_are_refused_not_silently_ignored(tmp_path) -> None:
+    """Неизвестные единицы — отказ, а не молчаливые миллиметры.
+
+    `units_by_key` на неизвестный ключ отвечает миллиметрами, и для веба это
+    верно: в выпадающем списке junk не наберёшь. Здесь ключ набирают руками,
+    и выдать не те единицы молча — хуже, чем отказать.
+    """
+    with pytest.raises(SystemExit):
+        main(["workshop", "-o", str(tmp_path), "--units", "дюймы"])

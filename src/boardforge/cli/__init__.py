@@ -12,6 +12,7 @@ import webbrowser
 from pathlib import Path
 
 from ..core.species import DEFAULT_SPECIES_PATH, load_species
+from ..core.units import UNITS
 from ..render.style import RenderOptions, style_by_name
 from ..render.svg import render_board
 from ..render.swatches import render_swatches
@@ -406,7 +407,16 @@ def build_parser() -> argparse.ArgumentParser:
     workshop.add_argument(
         "--species", type=Path, default=DEFAULT_SPECIES_PATH, help="свой справочник пород"
     )
-    workshop.add_argument("--units", default="mm", help="единицы показа: mm или inch")
+    # `choices`, потому что `units_by_key` на неизвестный ключ отвечает
+    # миллиметрами — это верно для выпадающего списка в вебе, где junk прийти
+    # не может, и неверно здесь: человек набирает ключ руками, и молча выдать
+    # ему не те единицы хуже, чем отказать.
+    workshop.add_argument(
+        "--units",
+        default="mm",
+        choices=sorted(UNITS),
+        help="единицы показа",
+    )
     workshop.add_argument(
         "--scale", type=float, default=2.0, help="пикселей на миллиметр"
     )
@@ -445,6 +455,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return args.handler(args)
+    except FileNotFoundError as error:
+        # Раньше сюда приходил `[Errno 2] No such file or directory` — по-английски
+        # и с экранированным путём. Команда одна на все подкоманды: не найден
+        # файл пород, картинки или проекта — фраза одна и та же.
+        print(f"boardforge: файл не найден: {error.filename}", file=sys.stderr)
+        return 1
     except UnicodeEncodeError:
         # Наследует ValueError, и ветка ниже принимала его за отказ по делу:
         # команда отрабатывала, писала файлы и возвращала 1 с жалобой на
