@@ -3,13 +3,19 @@
 import re
 
 import pytest
+from shapely.geometry import Point
 
 from boardforge.core.library import build
 from boardforge.core.species import load_species
 from boardforge.core.units import INCHES
 from boardforge.render.blueprint import Sheet, render_blueprint
 from boardforge.render.style import BLUEPRINT, STYLES, RenderOptions, style_by_name
-from boardforge.render.svg import render_board, species_letters
+from boardforge.render.svg import (
+    board_cells,
+    label_anchor,
+    render_board,
+    species_letters,
+)
 
 _TEXT = re.compile(r"<text[^>]*>([^<]*)</text>")
 _COLOR = re.compile(r'(?:fill|stroke)="(#[0-9a-fA-F]{6})"')
@@ -70,27 +76,77 @@ def test_letters_are_stable_across_renders() -> None:
     assert first == second == {"maple_hard": "A", "walnut_black": "B"}
 
 
-def test_small_cells_are_not_labelled(catalogue) -> None:
-    """В ячейку мельче порога буква не влезет — и её там нет.
+def test_no_letter_lands_on_a_seam(catalogue) -> None:
+    """Ни одна буква не садится на шов. Дефект найден глазами на дне 5.
 
-    Подписать всё подряд — значит получить кашу из букв, вылезающих за швы.
-    Обозначение, которое врёт про свою ячейку, хуже отсутствующего.
+    Подпись ставилась в центр габаритной рамки ячейки. У ромбов кубов рамка
+    широкая, а по короткой диагонали места нет: половина из 291 подписи
+    выезжала на шов, и чертёж читался кашей. Меряется зазор до кромки от той
+    точки, куда буква реально встанет, — по всем ячейкам всех трёх узоров.
     """
-    board = build("chevron").program.run().board
-    tiny = [
-        piece
-        for piece in board.pieces
-        if min(
-            piece.polygon.bounds[2] - piece.polygon.bounds[0],
-            piece.polygon.bounds[3] - piece.polygon.bounds[1],
-        )
-        < BLUEPRINT.label.min_cell_mm
-    ]
-    assert tiny, "в этом узоре нет мелких ячеек — тест проверял бы пустоту"
+    for name in ("checkerboard", "chevron", "cubes"):
+        board = build(name).program.run().board
+        for cell in board_cells(board, catalogue, BLUEPRINT):
+            anchor = label_anchor(cell.piece.polygon, BLUEPRINT.label.clearance_mm)
+            if anchor is None:
+                continue
+            point = Point(*anchor)
+            assert cell.piece.polygon.contains(point), f"{name}: буква вне ячейки"
+            clearance = cell.piece.polygon.exterior.distance(point)
+            assert clearance >= BLUEPRINT.label.clearance_mm - 1e-9, (
+                f"{name}: буква в {clearance:.2f} мм от шва при высоте "
+                f"{BLUEPRINT.label.height_mm} мм"
+            )
 
-    drawing = render_blueprint(board, catalogue)
-    labels = [line for line in _TEXT.findall(drawing) if len(line) == 1]
-    assert len(labels) == len(board.pieces) - len(tiny)
+
+def test_cells_without_room_stay_unlabelled(catalogue) -> None:
+    """Ячейка, в которую буква не влезает, остаётся без подписи.
+
+    Обозначение, которое врёт про свою ячейку, хуже отсутствующего. У кубов
+    таких ячеек почти половина — узкие клинья по краям и тонкие ромбы.
+    """
+    board = build("cubes").program.run().board
+    cells = board_cells(board, catalogue, BLUEPRINT)
+    skipped = [
+        cell
+        for cell in cells
+        if label_anchor(cell.piece.polygon, BLUEPRINT.label.clearance_mm) is None
+    ]
+    assert skipped, "в этом узоре все ячейки просторные — тест проверял бы пустоту"
+
+    labels = [
+        line
+        for line in _TEXT.findall(render_blueprint(board, catalogue))
+        if len(line) == 1
+    ]
+    assert len(labels) == len(cells) - len(skipped)
+
+
+def test_clearance_follows_the_glyph(catalogue) -> None:
+    """Порог выведен из буквы, а не задан отдельно.
+
+    Отдельный порог однажды уже разошёлся с высотой буквы — с этого и начался
+    дефект. Тест держит связь: буква крупнее требует больше места, и подписей
+    становится меньше, а не столько же.
+    """
+    from dataclasses import replace
+
+    from boardforge.render.style import Label
+
+    assert BLUEPRINT.label.clearance_mm == BLUEPRINT.label.height_mm / 2
+
+    board = build("cubes").program.run().board
+    big = replace(BLUEPRINT, label=Label(color="#000000", height_mm=18.0))
+    cells = board_cells(board, catalogue, BLUEPRINT)
+    fits_small = sum(
+        1
+        for c in cells
+        if label_anchor(c.piece.polygon, BLUEPRINT.label.clearance_mm) is not None
+    )
+    fits_big = sum(
+        1 for c in cells if label_anchor(c.piece.polygon, big.label.clearance_mm)
+    )
+    assert fits_big < fits_small
 
 
 def test_dimensions_are_on_the_sheet(sheet, board) -> None:

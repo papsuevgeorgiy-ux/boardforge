@@ -270,22 +270,45 @@ def species_letters(species: Iterable[str]) -> dict[str, str]:
     return {key: LETTERS[index] for index, key in enumerate(sorted(set(species)))}
 
 
+def label_anchor(polygon: Polygon, clearance_mm: float) -> tuple[float, float] | None:
+    """Куда поставить букву в ячейке; `None` — ставить некуда.
+
+    Точка обязана лежать **внутри** ячейки: у обрезанной по краю доски центр
+    габаритной рамки выходит наружу, и буква уезжает на соседнюю деталь.
+    Центр тяжести для выпуклой ячейки внутри всегда, но обрезка оставляет
+    и невыпуклые — для них берётся заведомо внутренняя точка `shapely`.
+
+    Дальше меряется зазор до кромки. Буква приравнена к кругу радиусом
+    в половину своей высоты: у ромба габаритная рамка широкая, а по короткой
+    диагонали места нет, и подпись по рамке ложится прямо на шов.
+    """
+    point = polygon.centroid
+    if not polygon.contains(point):
+        point = polygon.representative_point()
+    if polygon.exterior.distance(point) < clearance_mm:
+        return None
+    return (point.x, point.y)
+
+
 def _labels(cells: list[Cell], label: Label, frame: Frame, digits: int) -> str:
-    """Буквы пород по центрам ячеек — единственная подпись внутри чертежа."""
+    """Буквы пород в ячейках — единственная подпись внутри чертежа."""
     letters = species_letters(cell.piece.species for cell in cells)
-    drawn = [
-        wrap(
-            "text",
-            escape(letters[cell.piece.species]),
-            x=num(frame.x(cell.center_x), digits),
-            y=num(frame.y(cell.center_y), digits),
-            text_anchor="middle",
-            dominant_baseline="central",
-            font_size=num(frame.px(label.height_mm), digits),
+    drawn = []
+    for cell in cells:
+        anchor = label_anchor(cell.piece.polygon, label.clearance_mm)
+        if anchor is None:
+            continue
+        drawn.append(
+            wrap(
+                "text",
+                escape(letters[cell.piece.species]),
+                x=num(frame.x(anchor[0]), digits),
+                y=num(frame.y(anchor[1]), digits),
+                text_anchor="middle",
+                dominant_baseline="central",
+                font_size=num(frame.px(label.height_mm), digits),
+            )
         )
-        for cell in cells
-        if cell.size_mm >= label.min_cell_mm
-    ]
     if not drawn:
         return ""
     return wrap("g", "".join(drawn), fill=label.color, font_family=FONT)
@@ -461,6 +484,7 @@ __all__ = [
     "RenderError",
     "RenderOptions",
     "board_body",
+    "label_anchor",
     "board_canvas",
     "board_cells",
     "render_board",

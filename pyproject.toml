@@ -42,3 +42,9 @@ testpaths = ["tests"]
 # `--basetemp` здесь больше нет намеренно: именно он и делал каталог
 # недоступным. Разбор причины и замена — в conftest.py в корне.
 addopts = "-q"
+# Расхождение версий внутри FastAPI: starlette ругается на httpx в собственном
+# TestClient. На работу не влияет, но мусорит каждый прогон. Глушим по классу,
+# а не по тексту — текст в следующей версии сменится, класс нет.
+filterwarnings = [
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
