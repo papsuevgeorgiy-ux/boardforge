@@ -22,7 +22,7 @@ Python-first. Ядро без единой UI-зависимости, оболо
 - **Сборка:** hatchling, src-layout
 - **Формат проекта:** JSON программы операций + `schema_version`
 - **Локально:** Windows, PowerShell, `C:\dev\boardforge`
-- **Git:** `papsuevgeorgiy-ux/boardforge`, приватный, HTTPS (`gh auth setup-git`), теги `day1`…`day5`
+- **Git:** `papsuevgeorgiy-ux/boardforge`, приватный, HTTPS (`gh auth setup-git`), теги `day1`…`day6`
 - **3D:** `trimesh` 5.0 → `.glb`, показ через `<model-viewer>` 4.1. Просмотрщик лежит локально в `web/static/` (979 КБ) рядом с htmx: «работает без сети» — заявленное свойство, и ради 3D его не отменяем
 - **PDF:** WeasyPrint 69.0 поверх системного GTK (MSYS2, Pango 15701). Импортируется только лениво, внутри функции
 - **Триангуляция:** `shapely.constrained_delaunay_triangles` (GEOS 3.13) — новой зависимости 3D не потребовало
