@@ -7,9 +7,15 @@ from shapely.geometry import Polygon
 
 from .units import EPS
 
-_SNAP_MM = 1e-6
+SNAP_MM = 1e-6
 """Сетка округления контура детали: нанометр. На порядки мельче любого
-столярного допуска и на порядки крупнее ошибки округления в пересечениях."""
+столярного допуска и на порядки крупнее ошибки округления в пересечениях.
+
+Имя публичное, потому что округлять контур приходится в двух местах: здесь,
+у `Part.outline`, и в рисовальщике, где кромка доски объединяется своим
+`unary_union`. Величина обязана быть одна — разойдись они, контур на чертеже
+перестал бы совпадать с тем, который проверяет валидатор.
+"""
 
 
 def _min_rect_side(geometry: object) -> float:
@@ -263,7 +269,7 @@ class Part:
         from shapely.ops import unary_union
 
         return set_precision(
-            unary_union([piece.polygon for piece in self.pieces]), _SNAP_MM
+            unary_union([piece.polygon for piece in self.pieces]), SNAP_MM
         )
 
     @property

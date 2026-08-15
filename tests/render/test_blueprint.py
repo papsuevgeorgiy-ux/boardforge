@@ -256,3 +256,44 @@ def test_narrow_part_still_fits_its_stamp(catalogue) -> None:
     width, _ = _sheet_size(svg)
     assert width >= MIN_SHEET_PX
     assert "Шаг 2. Торцовка" in svg
+
+
+def test_board_edge_is_one_contour_on_cubes(catalogue) -> None:
+    """Кромка доски обводится один раз, а не по каждой щели внутри узора.
+
+    `unary_union` соседних ячеек оставляет между ними щели нулевой ширины:
+    у кубов контур выходил из 61 кольца вместо одного, и каждая из шестидесяти
+    щелей обводилась толщиной кромки. На чертеже это толстые отрезки,
+    разбросанные по узору, — их читают как рёбра кубов, а это артефакт.
+    Тот же дефект чинили на Дне 4 в `Part.outline`; сюда починка не доехала,
+    потому что здесь своё объединение.
+
+    Считаются **кольца**, а не полигоны: щели приходят дырками внутри одного
+    полигона, и счёт полигонов их не видит — на этом легко успокоиться зря.
+    """
+    from shapely import set_precision
+    from shapely.ops import unary_union
+
+    from boardforge.core.piece import SNAP_MM
+
+    board = build("cubes").program.run().board
+    raw = unary_union([piece.polygon for piece in board.pieces])
+    raw_rings = sum(1 + len(g.interiors) for g in getattr(raw, "geoms", (raw,)))
+    assert raw_rings > 1, "на этом узоре щелей нет — тест проверял бы пустоту"
+
+    edge = set_precision(raw, SNAP_MM)
+    rings = sum(1 + len(g.interiors) for g in getattr(edge, "geoms", (edge,)))
+    assert rings == 1
+
+
+def test_blueprint_draws_the_rounded_edge(catalogue) -> None:
+    """Чертёж кубов рисует кромку одним контуром — округление доехало до листа.
+
+    Проверка сквозная, а не по геометрии: округлить контур и забыть отдать его
+    рисовальщику — ровно та ошибка, которая уже случалась.
+    """
+    board = build("cubes").program.run().board
+    svg = render_blueprint(board, catalogue, RenderOptions(scale=1.0))
+    edge_path = re.findall(r'<path d="([^"]+)" stroke-linejoin="round"[^>]*>', svg)
+    assert edge_path, "кромка рисуется отдельным путём"
+    assert edge_path[-1].count("Z") == 1, "кромка обведена больше одного раза"

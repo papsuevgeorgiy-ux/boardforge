@@ -9,10 +9,11 @@ import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from shapely import set_precision
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
-from ..core.piece import Part, Piece
+from ..core.piece import SNAP_MM, Part, Piece
 from ..core.species import Palette, Species
 from . import texture
 from .canvas import Frame, document, element, escape, num, wrap
@@ -410,7 +411,14 @@ def board_body(
         )
     )
 
-    edge = unary_union([cell.piece.polygon for cell in cells])
+    # Округление перед объединением — не перестраховка. Без него `unary_union`
+    # оставляет между соседними ячейками щели нулевой ширины: у кубов контур
+    # доски выходит из 61 кольца вместо одного, и каждая из 60 щелей обводится
+    # толщиной кромки. На рисунке это толстые отрезки, разбросанные по узору
+    # неравномерно, — их легко принять за рёбра кубов, а это артефакт.
+    # Тот же дефект чинили на Дне 4 в `Part.outline`, но сюда починка не доехала:
+    # здесь своё объединение. Измерено: с округлением колец снова одно.
+    edge = set_precision(unary_union([cell.piece.polygon for cell in cells]), SNAP_MM)
     body.append(
         element(
             "path",
