@@ -9,6 +9,7 @@ __pycache__/
 .pytest-tmp-b/
 .pytest-run/
 .ruff_cache/
+.tmp/
 dist/
 build/
 *.egg-info/
