@@ -354,3 +354,60 @@ def test_missing_printer_does_not_break_the_editor(
     assert "pacman -S mingw-w64-x86_64-pango" in response.text
     assert client.get("/").status_code == 200
     assert client.get("/workshop").status_code == 200
+
+
+def test_model_panel_starts_folded(client: TestClient) -> None:
+    """Страница не тянет мегабайтный просмотрщик, пока его не попросили."""
+    page = client.get("/").text
+    assert 'id="model"' in page
+    assert "model-viewer.min.js" not in page
+    assert "Показать в объёме" in page
+
+
+def test_model_unfolds_and_stays_unfolded(client: TestClient, editor) -> None:
+    """Развёрнутый объём переживает правку доски, а не схлопывается обратно.
+
+    Флаг живёт в состоянии редактора именно поэтому: панель приходит заново
+    на каждой правке, и разметка о прошлом решении ничего не помнит.
+    """
+    fragment = client.get("/fragment/model").text
+    assert "model-viewer.min.js" in fragment
+    assert "/board.glb" in fragment
+    assert editor.model_shown is True
+
+    after_edit = client.post("/strips", data={"action": "add"}).text
+    assert "model-viewer" in after_edit
+
+
+def test_board_glb_is_served(client: TestClient) -> None:
+    """Модель отдаётся настоящим glTF-контейнером."""
+    response = client.get("/board.glb")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "model/gltf-binary"
+    assert response.content[:4] == b"glTF"
+
+
+def test_model_url_changes_with_the_board(client: TestClient) -> None:
+    """Адрес модели меняется вместе с программой — иначе браузер покажет вчерашнюю."""
+    first = re.search(r"/board\.glb\?v=(\d+)", client.get("/fragment/model").text)
+    assert first
+    client.post("/strips", data={"action": "add"})
+    second = re.search(r"/board\.glb\?v=(\d+)", client.get("/").text)
+    assert second and second.group(1) != first.group(1)
+
+
+def test_broken_program_has_no_model(client: TestClient, editor) -> None:
+    """Модели нет, когда нет доски, — и об этом сказано словами."""
+    editor.program = Program(
+        operations=(
+            Glue(
+                id="A",
+                strips=(Strip("maple_hard", 40.0),),
+                length_mm=400.0,
+                thickness_mm=20.0,
+            ),
+            Crosscut(source="A", step_mm=40.0),
+        )
+    )
+    assert client.get("/board.glb").status_code == 409
+    assert "Модели нет" in client.get("/").text

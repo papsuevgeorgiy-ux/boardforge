@@ -1,0 +1,24 @@
+{#
+  Откат и возврат. Горячие клавиши повешены прямо на кнопки через hx-trigger:
+  своего JS в проекте нет и заводить его ради двух сочетаний незачем.
+
+  Ловится `code`, а не `key`: `code` не зависит от раскладки, и на русской
+  Ctrl+Z (буква «я» на той же клавише) работает так же, как на латинской.
+  Слушаем с `body`, поэтому сочетание срабатывает и из поля ввода — в редакторе
+  доски Ctrl+Z должен откатывать доску, а не набранный текст.
+
+  Кнопка недоступна, когда откатывать нечего, и вместе с ней молчит клавиша:
+  htmx с выключенного элемента запросов не шлёт.
+#}
+<div id="history" class="history"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <button type="button" class="button" title="Откатить правку (Ctrl+Z)"
+          hx-post="/history" hx-vals='{"action": "undo"}'
+          hx-target="#board" hx-swap="outerHTML"
+          hx-trigger="click, keydown[ctrlKey&amp;&amp;!shiftKey&amp;&amp;code=='KeyZ'] from:body"
+          {% if not can_undo %}disabled{% endif %}>← Отменить</button>
+  <button type="button" class="button" title="Вернуть откаченное (Ctrl+Shift+Z)"
+          hx-post="/history" hx-vals='{"action": "redo"}'
+          hx-target="#board" hx-swap="outerHTML"
+          hx-trigger="click, keydown[ctrlKey&amp;&amp;shiftKey&amp;&amp;code=='KeyZ'] from:body"
+          {% if not can_redo %}disabled{% endif %}>Вернуть →</button>
+</div>

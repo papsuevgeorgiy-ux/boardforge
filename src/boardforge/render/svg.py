@@ -290,8 +290,22 @@ def label_anchor(polygon: Polygon, clearance_mm: float) -> tuple[float, float] |
     return (point.x, point.y)
 
 
+MIN_LABEL_PX = 6.0
+"""Меньше этого буква породы не читается, и рисовать её незачем.
+
+Высота буквы задана в миллиметрах доски и вместе с масштабом сжимается.
+На чертеже готовой доски она крупная, а на чертеже шага, приведённом к ширине
+листа, щит из двухсот ячеек получает буквы в два пикселя: их не видно даже
+в лупу, но каждая стоит поиска точки внутри ячейки через shapely. Отсюда
+и цена: на кубах инструкция из восемнадцати шагов складывалась в основном
+из подписей, которые всё равно никто не прочтёт.
+"""
+
+
 def _labels(cells: list[Cell], label: Label, frame: Frame, digits: int) -> str:
     """Буквы пород в ячейках — единственная подпись внутри чертежа."""
+    if frame.px(label.height_mm) < MIN_LABEL_PX:
+        return ""
     letters = species_letters(cell.piece.species for cell in cells)
     drawn = []
     for cell in cells:
@@ -484,6 +498,7 @@ __all__ = [
     "RenderError",
     "RenderOptions",
     "board_body",
+    "MIN_LABEL_PX",
     "label_anchor",
     "board_canvas",
     "board_cells",

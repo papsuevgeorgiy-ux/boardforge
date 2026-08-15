@@ -6,7 +6,6 @@
 это способ смотреть, а не свойство доски, и в JSON они не попадают.
 """
 
-import json
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,6 +17,11 @@ from ..core.ops import Glue, Strip
 from ..core.program import Program
 from ..core.species import Species, load_species
 from ..core.units import Units, units_by_key
+from ..io import project
+
+HISTORY_DEPTH = 50
+"""Сколько шагов правки помним. Полсотни — это про руки, а не про память:
+дальше человек не откатывает, он открывает сохранённый файл."""
 
 MAX_SEED = 1_000_000
 """Верх диапазона случайного сида. Шестизначный сид человек перепишет с экрана
@@ -43,6 +47,22 @@ class Editor:
     """Чем и с каким результатом сгенерирован узор — вместе с программой, для
     которой это посчитано. Программа хранится здесь не от жадности: её правят
     руками сразу же, а оценки после правки — уже не про эту доску."""
+
+    past: list[Program] = field(default_factory=list)
+    future: list[Program] = field(default_factory=list)
+    """История правок: что было до и что откатили.
+
+    Хранятся **программы целиком**, а не описания правок. Программа
+    неизменяема, операции заморожены, и полсотни таких списков весят меньше
+    одного превью — а обратная операция к «подобрать габарит» не выражается
+    ничем, кроме прежней программы: подбор переписывает сразу несколько
+    операций и меряет результат исполнением.
+    """
+
+    model_shown: bool = False
+    """Развёрнут ли 3D-просмотрщик. Живёт в состоянии, а не в разметке: панель
+    приходит заново на каждой правке, и без флага объём схлопывался бы обратно
+    в кнопку от любого движения ползунка."""
 
     shop: tuple[Program, object] | None = None
     """Расчёт цеха и программа, для которой он посчитан. Кэш обязателен: раскрой
@@ -84,10 +104,46 @@ class Editor:
             genome, program = generate(seed, self.catalogue, template)
         except ValueError as error:
             raise EditError(str(error)) from error
-        self.program = program
+        self.set_program(program)
         self.scored = (program, genome, score(program, self.catalogue))
         self.seed = seed
         return seed
+
+    def set_program(self, program: Program) -> None:
+        """Поставить новую программу, запомнив прежнюю.
+
+        Единственная дверь, через которую программа меняется. Заводилась она
+        именно как единственная: правка, прошедшая мимо, откатывалась бы
+        не туда — сначала незаметно, а потом с чужим узором на экране.
+        """
+        if program == self.program:
+            return
+        self.past.append(self.program)
+        del self.past[:-HISTORY_DEPTH]
+        self.future.clear()
+        self.program = program
+
+    @property
+    def can_undo(self) -> bool:
+        return bool(self.past)
+
+    @property
+    def can_redo(self) -> bool:
+        return bool(self.future)
+
+    def undo(self) -> None:
+        """Вернуть предыдущую программу."""
+        if not self.past:
+            raise EditError("откатывать нечего")
+        self.future.append(self.program)
+        self.program = self.past.pop()
+
+    def redo(self) -> None:
+        """Вернуть откаченное."""
+        if not self.future:
+            raise EditError("возвращать нечего")
+        self.past.append(self.program)
+        self.program = self.future.pop()
 
     @property
     def glue(self) -> Glue:
@@ -154,45 +210,43 @@ class Editor:
 
         glue = self.glue
         updated = replace(glue, **changes)
-        self.program = Program(
-            operations=tuple(
-                updated if op is glue else op for op in self.program.operations
-            ),
-            schema_version=self.program.schema_version,
+        self.set_program(
+            Program(
+                operations=tuple(
+                    updated if op is glue else op for op in self.program.operations
+                ),
+                schema_version=self.program.schema_version,
+            )
         )
+
+    # Работа с файлом проекта живёт в `io/project.py`. Здесь остались четыре
+    # обёртки: они переводят отказ файлового слоя в `EditError`, на который
+    # рассчитаны обработчики маршрутов, и запоминают открытый путь.
 
     def load_json(self, text: str) -> None:
         """Загрузить программу из JSON проекта."""
         try:
-            data = json.loads(text)
-        except json.JSONDecodeError as error:
-            raise EditError(f"это не JSON: {error}") from error
-        try:
-            self.program = Program.from_dict(data)
-        except (ValueError, KeyError, TypeError) as error:
-            raise EditError(f"проект не читается: {error}") from error
+            self.set_program(project.loads(text))
+        except project.ProjectError as error:
+            raise EditError(str(error)) from error
 
     def dump_json(self) -> str:
         """Программа в JSON проекта — читаемый и диффабельный."""
-        return json.dumps(self.program.to_dict(), ensure_ascii=False, indent=2) + "\n"
+        return project.dumps(self.program)
 
     def save_to(self, path: Path) -> Path:
         """Сохранить проект по пути на диске."""
-        path = Path(path)
-        if not path.name:
-            raise EditError("не указано имя файла")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.dump_json(), encoding="utf-8")
-        self.path = path
-        return path
+        try:
+            self.path = project.save(self.program, path)
+        except project.ProjectError as error:
+            raise EditError(str(error)) from error
+        return self.path
 
     def open_from(self, path: Path) -> Path:
         """Открыть проект с диска."""
-        path = Path(path)
         try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as error:
-            raise EditError(f"файл не открывается: {error}") from error
-        self.load_json(text)
-        self.path = path
-        return path
+            self.set_program(project.load(path))
+        except project.ProjectError as error:
+            raise EditError(str(error)) from error
+        self.path = Path(path)
+        return self.path

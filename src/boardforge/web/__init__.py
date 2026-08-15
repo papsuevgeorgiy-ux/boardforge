@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from ..core.fitting import FitError, fit_dimensions
 from ..core.library import LIBRARY
 from ..core.program import Program
+from ..render.mesh import CHAMFER_MM
 from ..render.style import RenderOptions
 from ..render.svg import render_board, render_structure
 from . import presenters
@@ -93,6 +94,11 @@ def create_app(program: Program | None = None) -> FastAPI:
             ),
             "scores": presenters.score_views(generated[1]) if generated else None,
             "shop": editor.workshop,
+            "can_undo": editor.can_undo,
+            "can_redo": editor.can_redo,
+            "model_shown": editor.model_shown,
+            "model_revision": abs(hash(editor.program.operations)),
+            "model_chamfer_mm": CHAMFER_MM,
             **extra,
         }
 
@@ -145,7 +151,7 @@ def create_app(program: Program | None = None) -> FastAPI:
         except (FitError, ValueError) as error:
             editor.note = str(error)
         else:
-            editor.program = fit.program
+            editor.set_program(fit.program)
             editor.note = _fit_note(fit, editor)
         return refresh(request)
 
@@ -171,6 +177,24 @@ def create_app(program: Program | None = None) -> FastAPI:
             editor.note = str(error)
         else:
             editor.note = f"сид {used} — по нему этот узор соберётся снова"
+        return refresh(request)
+
+    @app.post("/history", response_class=HTMLResponse)
+    async def step_history(request: Request) -> Response:
+        """Откат и возврат правки. Одна ручка на оба направления.
+
+        Пустая история — не ошибка: горячая клавиша срабатывает и тогда, когда
+        откатывать нечего, и пятисотка на каждое лишнее нажатие была бы дичью.
+        """
+        form = await read_form(request)
+        editor.note = ""
+        try:
+            if form.get("action") == "redo":
+                editor.redo()
+            else:
+                editor.undo()
+        except EditError as error:
+            editor.note = str(error)
         return refresh(request)
 
     @app.post("/units", response_class=HTMLResponse)
@@ -218,6 +242,26 @@ def create_app(program: Program | None = None) -> FastAPI:
             )
         shop = collect(editor.program, editor.catalogue, units=editor.units)
         return HTMLResponse(render_workshop(shop))
+
+    @app.get("/fragment/model", response_class=HTMLResponse)
+    def fragment_model(request: Request) -> Response:
+        """Развернуть 3D. Просмотрщик и модель грузятся отсюда, а не со страницей."""
+        editor.model_shown = True
+        return templates.TemplateResponse(request, "_model.html", context(request))
+
+    @app.get("/board.glb")
+    def board_model() -> Response:
+        """Доска в объёме. Тот же набор ячеек, что и в превью, поднятый на высоту."""
+        from ..render.mesh import export_glb
+
+        board, failure = editor.build_board()
+        if board is None:
+            return PlainTextResponse(f"модели нет: {failure}", status_code=409)
+        return Response(
+            export_glb(board, editor.catalogue),
+            media_type="model/gltf-binary",
+            headers={"cache-control": "no-cache"},
+        )
 
     @app.get("/workshop.pdf")
     def workshop_pdf() -> Response:

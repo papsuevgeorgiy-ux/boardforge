@@ -1,0 +1,29 @@
+{#
+  Доска в объёме. Просмотрщик весит около мегабайта, поэтому и он, и модель
+  грузятся по кнопке, а не при открытии страницы: редактор должен подниматься
+  быстро, а в объём смотрят не на каждой правке.
+
+  Повторная вставка <script type="module"> с тем же адресом безопасна —
+  модуль по спецификации выполняется один раз на документ, сколько бы раз
+  его ни подставили. Иначе второе объявление <model-viewer> упало бы.
+#}
+<div id="model" class="panel"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <h2>В объёме</h2>
+  {% if not board %}
+    <p class="panel__hint">Модели нет: программа не исполняется.</p>
+  {% elif model_shown %}
+    <script type="module" src="/static/model-viewer.min.js"></script>
+    <model-viewer class="model__viewer" src="/board.glb?v={{ model_revision }}"
+                  alt="Торцевая разделочная доска в объёме"
+                  camera-controls auto-rotate touch-action="pan-y"
+                  shadow-intensity="1" exposure="0.95"></model-viewer>
+    <p class="panel__hint">Те же ячейки, что и в превью, поднятые на высоту
+      доски. Фаска {{ '%.1f'|format(model_chamfer_mm) }} мм по кромке, цвет —
+      под маслом: смоченное дерево темнее сухого.</p>
+  {% else %}
+    <button class="button" hx-get="/fragment/model" hx-target="#model"
+            hx-swap="outerHTML">Показать в объёме</button>
+    <p class="panel__hint">Просмотрщик и модель — около мегабайта, поэтому
+      по кнопке. Дальше объём обновляется вместе с доской.</p>
+  {% endif %}
+</div>

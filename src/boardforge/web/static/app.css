@@ -182,3 +182,24 @@ input, select {
 .op__issue { margin: 0.2rem 0 0; font-size: 0.78rem; color: var(--error); }
 
 .board__reason { color: var(--ink-soft); font-size: 0.8rem; }
+
+/* Просмотрщик 3D. Высота фиксированная: без неё <model-viewer> схлопывается
+   в ноль — своих размеров у него нет, он их только наследует. */
+.model__viewer {
+  width: 100%;
+  height: 320px;
+  background: #f2efe9;
+  border-radius: 3px;
+}
+
+/* Откат и возврат — в шапке, рядом с названием: правку отменяют не глядя,
+   и искать кнопку в колонке некогда. */
+.history {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.history .button[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
