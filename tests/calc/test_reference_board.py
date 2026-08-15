@@ -16,6 +16,7 @@
 import pytest
 
 from boardforge.calc.allowances import Allowances
+from boardforge.calc.estimate import estimate
 from boardforge.calc.material import material_report
 from boardforge.core.program import Program
 from tests.helpers import PANEL
@@ -47,6 +48,18 @@ LOSSES_MM3 = {
     "offcut": 1_008_000.0,
 }
 OVERHEAD_RATIO = 0.6856
+
+BOARD_WEIGHT_KG = 1.89664
+"""Вес контрольной доски при сверенных плотностях.
+
+Прибит здесь по итогу мутационной проверки Дня 6: сдвиг плотности клёна на 10%
+в `species.yaml` роняет только сверку `REFERENCE_DATA` в `tests/core`, а весь
+`tests/calc` остаётся зелёным. Проверки веса там относительные («клён с венге
+тяжелее клёна с орехом») и порядковые («от 1 до 20 кг») — обе переживают
+десятипроцентную ошибку в справочнике спокойно. С этой строкой у плотности
+появляется второй сторож, и стоит он ниже по течению: не «в файле не то число»,
+а «доска весит не столько».
+"""
 
 TOLERANCE = {"rel": 1e-9}
 
@@ -129,3 +142,15 @@ def test_edge_trim_split_is_visible(checkerboard: Program) -> None:
     assert split.losses.edge_trim_mm3 == pytest.approx(108_000.0, rel=1e-3)
     assert lumped.overhead_ratio == pytest.approx(0.953, abs=5e-4)
     assert split.overhead_ratio == pytest.approx(0.686, abs=5e-4)
+
+
+def test_board_weight_is_pinned(checkerboard: Program) -> None:
+    """Вес контрольной доски — число, а не диапазон.
+
+    Единственная проверка во всём `calc/`, которая замечает поехавшую плотность
+    породы. Упал — сначала объясни, какое число в `species.yaml` изменилось
+    и почему, и только потом правь эталон.
+    """
+    assert estimate(checkerboard, allowances=ALLOWANCES).weight_kg == pytest.approx(
+        BOARD_WEIGHT_KG, **TOLERANCE
+    )
