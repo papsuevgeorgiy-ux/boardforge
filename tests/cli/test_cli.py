@@ -193,3 +193,14 @@ def test_unknown_units_are_refused_not_silently_ignored(tmp_path) -> None:
     """
     with pytest.raises(SystemExit):
         main(["workshop", "-o", str(tmp_path), "--units", "дюймы"])
+
+
+def test_unknown_generate_template_is_refused(tmp_path) -> None:
+    """Опечатка в имени шаблона — отказ argparse, а не голый `KeyError`.
+
+    До этого опечатка доходила до `LIBRARY[template]`, и `KeyError` выходил
+    наружу трейсбеком: он не наследует ни `OSError`, ни `ValueError`, поэтому
+    его не ловила ни одна ветка `main()`.
+    """
+    with pytest.raises(SystemExit):
+        main(["generate", "--template", "чебурашка", "-o", str(tmp_path / "b.svg")])

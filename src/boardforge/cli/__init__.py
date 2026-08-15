@@ -11,6 +11,7 @@ import threading
 import webbrowser
 from pathlib import Path
 
+from ..core.library import LIBRARY
 from ..core.species import DEFAULT_SPECIES_PATH, load_species
 from ..core.units import UNITS
 from ..render.style import RenderOptions, style_by_name
@@ -327,8 +328,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     generated.add_argument("--seed", type=int, default=1, help="сид генератора")
+    # `choices` по той же причине, что и у `--units`: значение набирают руками.
+    # Без него опечатка доходила до `LIBRARY[template]` и выходила наружу
+    # голым `KeyError` — его не ловит ни одна ветка `main()`.
     generated.add_argument(
-        "--template", default=None, help="назначить шаблон вместо случайного"
+        "--template",
+        default=None,
+        choices=sorted(LIBRARY),
+        help="назначить шаблон вместо случайного",
     )
     generated.add_argument(
         "--evolve", action="store_true", help="эволюционный режим вместо одной попытки"
