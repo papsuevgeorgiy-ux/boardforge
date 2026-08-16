@@ -86,6 +86,7 @@ def create_app(program: Program | None = None) -> FastAPI:
             "default_path": str(editor.path or DEFAULT_PROJECT_PATH),
             "templates_list": [(item.key, item.title) for item in LIBRARY.values()],
             "seed": editor.seed,
+            "template": generated[0].template if generated else "",
             "genome_title": LIBRARY[generated[0].template].title if generated else "",
             "genome_summary": (
                 presenters.genome_summary(generated[0], editor.catalogue)
@@ -157,7 +158,12 @@ def create_app(program: Program | None = None) -> FastAPI:
 
     @app.post("/generate", response_class=HTMLResponse)
     async def surprise_me(request: Request) -> Response:
-        """«Удиви меня»: узор по сиду, а не по кнопке.
+        """Две кнопки одной формы: «Построить» и «Удиви меня».
+
+        «Построить» строит выбранный узор — человек знает, что хочет ёлочку,
+        и получает ёлочку. «Удиви меня» отбрасывает и выбор, и сид: это запрос
+        на случайный узор, а не на выбранный со случайными параметрами.
+        Разница именно в намерении, поэтому она в кнопке, а не в поле.
 
         Пустое поле сида — случайный; заполненное — тот же узор, что и в CLI
         при том же числе. Сид возвращается в поле, поэтому понравившееся всегда
@@ -165,6 +171,10 @@ def create_app(program: Program | None = None) -> FastAPI:
         """
         form = await read_form(request)
         editor.note = ""
+        if form.get("mode") == "surprise":
+            used = editor.surprise(None, None)
+            editor.note = f"сид {used} — по нему этот узор соберётся снова"
+            return refresh(request)
         raw = form.get("seed").strip()
         try:
             wanted = int(raw) if raw else None
