@@ -1,7 +1,8 @@
 <div id="generate" class="panel"{% if oob %} hx-swap-oob="true"{% endif %}>
-  <h2>Удиви меня</h2>
-  <p class="panel__hint">Генератор выбирает узор из библиотеки и подбирает
-    параметры, а негодные выбрасывает: неизготовимого он не предложит.
+  <h2>Узор</h2>
+  <p class="panel__hint">Выберите узор и нажмите «Построить» — параметры
+    подберутся сами, а негодные варианты генератор выбрасывает:
+    неизготовимого он не предложит. Дальше доводите руками ниже.
     Один сид — один узор, всегда тот же самый.</p>
   <form hx-post="/generate" hx-target="#board" hx-swap="outerHTML"
         class="generate__form">
@@ -9,7 +10,7 @@
       <select name="template">
         <option value="">любой</option>
         {% for key, title in templates_list %}
-          <option value="{{ key }}">{{ title }}</option>
+          <option value="{{ key }}"{% if key == template %} selected{% endif %}>{{ title }}</option>
         {% endfor %}
       </select>
     </label>
@@ -18,7 +19,8 @@
              value="{{ seed if seed is not none else '' }}"
              placeholder="пусто — случайный">
     </label>
-    <button type="submit" class="primary">Удиви меня</button>
+    <button type="submit" name="mode" value="build" class="primary">Построить</button>
+    <button type="submit" name="mode" value="surprise">Удиви меня</button>
   </form>
 
   {% if scores %}

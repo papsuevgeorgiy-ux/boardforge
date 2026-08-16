@@ -28,6 +28,7 @@ packages = ["src/boardforge"]
 dev = [
     "httpx>=0.28",
     "hypothesis>=6.165.2",
+    "pyinstaller>=6.22.1",
     "pytest>=8.0",
     "ruff>=0.9",
 ]
